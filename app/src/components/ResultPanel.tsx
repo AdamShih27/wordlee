@@ -14,7 +14,12 @@ export function ResultPanel({
   onNewGame,
   onShowStats,
   extra,
+  headline,
+  tip = '點每一行右邊的書本圖示，可以查你猜過的字並收藏到單字卡',
 }: {
+  headline?: string;
+  /** 面板最下面的小提示，傳 null 不顯示 */
+  tip?: string | null;
   answer: string;
   won: boolean;
   guesses: number;
@@ -28,10 +33,10 @@ export function ResultPanel({
   const saved = vocab.has(answer);
   return (
     <View style={styles.card} testID="result-panel">
-      <Text style={styles.headline}>{won ? `答對了！用了 ${guesses} 次` : '這次沒猜到'}</Text>
+      <Text style={styles.headline}>{headline ?? (won ? `答對了！用了 ${guesses} 次` : '這次沒猜到')}</Text>
       <View style={styles.answerRow}>
         {answer.split('').map((ch, i) => (
-          <Tile key={i} letter={ch} state="correct" size={40} />
+          <Tile key={i} letter={ch} state="correct" size={answer.length > 5 ? 34 : 40} />
         ))}
       </View>
       <View style={styles.actions}>
@@ -51,7 +56,7 @@ export function ResultPanel({
         {onShowStats && <Button title="看統計" icon="stats" onPress={onShowStats} style={{ flex: 1 }} />}
         {onNewGame && <Button title="再玩一局" icon="refresh" onPress={onNewGame} style={{ flex: 1 }} testID="new-game" />}
       </View>
-      <Text style={styles.tip}>點每一行右邊的書本圖示，可以查你猜過的字並收藏到單字卡</Text>
+      {tip && <Text style={styles.tip}>{tip}</Text>}
     </View>
   );
 }

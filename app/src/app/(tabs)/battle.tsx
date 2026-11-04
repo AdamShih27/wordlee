@@ -11,7 +11,7 @@ import { Tile } from '@/components/Tile';
 import { useToast } from '@/components/Toast';
 import { Button, Chip, SectionTitle } from '@/components/ui';
 import { useBattle, type RoundInfo } from '@/lib/battle';
-import { IS_DEMO, SERVER_URL } from '@/lib/config';
+import { ONLINE_ENABLED, SERVER_URL } from '@/lib/config';
 import { DemoNotice } from '@/components/DemoNotice';
 import { useProfile } from '@/lib/profile';
 import { useGuessGame } from '@/lib/useGuessGame';
@@ -24,7 +24,7 @@ type Battle = ReturnType<typeof useBattle>;
 export default function BattleScreen() {
   const insets = useSafeAreaInsets();
   const profile = useProfile();
-  const battle = useBattle(profile.playerId, profile.name, profile.ready && !IS_DEMO);
+  const battle = useBattle(profile.playerId, profile.name, profile.ready && ONLINE_ENABLED);
   const toast = useToast();
   const { room, round, end } = battle;
 
@@ -35,7 +35,7 @@ export default function BattleScreen() {
       {toast.element}
       <View style={styles.header}>
         <Text style={styles.title}>連線對戰</Text>
-        {!IS_DEMO && (
+        {ONLINE_ENABLED && (
           <View style={styles.status}>
             <View style={[styles.dot, { backgroundColor: battle.connected ? C.correct : C.danger }]} />
             <Text style={styles.statusText}>{battle.connected ? '已連線' : '未連線'}</Text>
@@ -44,9 +44,9 @@ export default function BattleScreen() {
       </View>
 
       <View style={styles.body}>
-        {IS_DEMO ? (
-          <DemoNotice icon="battle" title="試玩版沒有連線對戰">
-            對戰需要連到 Wordlee 的對戰伺服器，試玩版先開放單人遊戲、字典和單字卡。
+        {!ONLINE_ENABLED ? (
+          <DemoNotice icon="battle" title="連線對戰還沒開放">
+            對戰需要連到 Wordlee 的對戰伺服器，目前先開放單人遊戲、Hangman、字典和單字卡。
           </DemoNotice>
         ) : !battle.connected ? (
           <Offline battle={battle} />

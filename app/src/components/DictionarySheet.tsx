@@ -3,7 +3,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Icon } from '@/components/Icon';
 import { Chip, SectionTitle, Sheet } from '@/components/ui';
-import { fetchOnlineInfo, offlineInfo, type OnlineInfo } from '@/lib/dictionary';
+import { fetchOnlineInfo, useOfflineInfo, type OnlineInfo } from '@/lib/dictionary';
 import { useVocab } from '@/lib/vocab';
 import { C, radius } from '@/lib/theme';
 
@@ -51,7 +51,8 @@ export function useDictionary() {
 }
 
 function WordDetails({ word, onOpenWord }: { word: string; onOpenWord: (w: string) => void }) {
-  const offline = useMemo(() => offlineInfo(word), [word]);
+  const offline = useOfflineInfo(word)!;
+  const offlineReady = offline.ready;
   const [online, setOnline] = useState<OnlineInfo | null>(null);
   const vocab = useVocab();
   const saved = vocab.has(word);
@@ -68,7 +69,7 @@ function WordDetails({ word, onOpenWord }: { word: string; onOpenWord: (w: strin
   const number =
     offline.number ?? (online?.pluralOf ? { kind: 'plural' as const, other: online.pluralOf, alsoThirdPerson: false } : null);
   const posList = [...new Set(offline.zh.map((m) => m.posZh).filter((p) => p && p !== '複數'))];
-  const nothing = !offline.found && online?.status === 'notfound';
+  const nothing = offlineReady && !offline.found && online?.status === 'notfound';
 
   return (
     <View testID={`word-${word}`}>
@@ -212,7 +213,7 @@ function WordDetails({ word, onOpenWord }: { word: string; onOpenWord: (w: strin
       )}
       {online?.status === 'error' && (
         <Text style={styles.muted}>
-          <Icon name="wifiOff" size={14} color={C.textMuted} /> 目前無法連線，只顯示離線字典的內容。
+          <Icon name="wifiOff" size={14} color={C.textMuted} /> 英文解釋和發音暫時載入失敗（可能是網路不穩），等一下再打開試試。
         </Text>
       )}
 

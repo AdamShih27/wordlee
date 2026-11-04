@@ -1,13 +1,15 @@
 # Wordlee
 
-猜 5 個字母英文單字的小遊戲，**順便學單字**。手機 App（iOS / Android）和網頁版用同一份程式碼。
+猜英文單字的小遊戲，**順便學單字**。手機 App（iOS / Android）和網頁版用同一份程式碼。
 
-- 🟩🟨⬜ 6 次機會猜一個字：綠色＝位置對、黃色＝有這個字母但位置不對、灰色＝沒有這個字母
+🌐 **網頁版：https://adamshih27.github.io/wordlee/**（推到預設分支就會自動部署，見下方「部署網頁版」）
+
+- 🟩🟨⬜ 6 次機會猜一個字，可以選 **5、6、7 個字母**：綠色＝位置對、黃色＝有這個字母但位置不對、灰色＝沒有這個字母
 - 📖 **每猜一個字，旁邊就會出現字典按鈕**：中文意思、詞性、單複數、詞形變化、例句（附中文翻譯）、英文解釋、發音
 - 🔖 **單字卡**：看不懂的字按「收藏」，之後可以在單字卡頁用清單或翻卡模式複習
-- ⚡ **連線對戰**：大家猜同一題，比誰解得快。可以快速配對，也可以開房間給朋友房號
-- 🏆 **排行榜**：對戰積分累計排名（積分規則可以自己改，見下方）
+- 🎈 **Hangman**：看中文意思，一個一個猜字母拼出英文單字，猜錯 6 次（氣球全破）就輸。可以用常見單字或**自己的單字卡**出題
 - 每日挑戰（每天一題、連勝統計、分享成績）、練習模式（無限玩）、困難模式
+- ⚡ 連線對戰和 🏆 排行榜：程式已完成，**目前先關閉**，等架好伺服器再打開（見下方「打開連線對戰」）
 
 ## 專案結構
 
@@ -29,22 +31,16 @@ wordlee/
 npm install
 ```
 
-開兩個終端機：
-
-```bash
-npm run server
-```
-
 ```bash
 npm run web
 ```
 
-瀏覽器打開 http://localhost:8081 就能玩。對戰功能要先開 server。
+瀏覽器打開 http://localhost:8081 就能玩。
 
 ### 在手機上測試
 
 1. 手機安裝 **Expo Go**（App Store / Google Play）
-2. 電腦執行 `npm run server`，以及：
+2. 電腦執行：
 
 ```bash
 npm run app
@@ -52,13 +48,33 @@ npm run app
 
 3. 用手機掃終端機上的 QR code（手機和電腦要連同一個 Wi-Fi）
 
-App 會自動連到電腦上的對戰伺服器（用電腦在區網的 IP + port 3001）。要連別的伺服器，就在 `app/.env` 設定：
+## 部署網頁版（GitHub Pages）
+
+`.github/workflows/deploy-web.yml` 會在每次推到 repo 的**預設分支**時，跑測試、打包網頁版、部署到 `https://<帳號>.github.io/<repo>/`。
+
+第一次要在 GitHub 打開 Pages（只要做一次）：
+
+1. repo 的 **Settings → Pages**
+2. **Build and deployment → Source** 選 **GitHub Actions**
+3. 到 **Actions → Deploy web → Run workflow** 手動跑一次（之後推程式就會自動部署）
+
+網頁版放在子路徑 `/wordlee/` 底下，打包時用 `EXPO_BASE_URL=/wordlee` 告訴 Expo（`app/app.config.js`）。本機開發不用設定。
+
+## 打開連線對戰
+
+對戰和排行榜需要一直開著的伺服器（`server/`），所以目前從分頁列隱藏。要打開的話：
+
+1. 把 `server/` 部署到能跑 Node 22、支援 WebSocket 的主機（見下方「對戰伺服器」）
+2. 打包 App 時設定：
 
 ```
+EXPO_PUBLIC_ENABLE_ONLINE=1
 EXPO_PUBLIC_SERVER_URL=https://your-server.example.com
 ```
 
-### 試玩版(不需要伺服器)
+本機想測對戰，就開兩個終端機分別跑 `npm run server` 和 `EXPO_PUBLIC_ENABLE_ONLINE=1 npm run web`。
+
+## 試玩版（不需要網路服務）
 
 只想試單人模式的話，可以打包一個純靜態的試玩版。這個版本不連對戰伺服器、不查線上字典，只用 App 裡內建的離線字典，所以可以放在任何靜態網頁空間：
 
@@ -104,7 +120,8 @@ HTTP API：`GET /api/leaderboard`、`GET /api/players/:id`、`GET /api/scoring`�
 | 英文解釋、音標、發音（線上） | [Free Dictionary API](https://dictionaryapi.dev/)（資料來自 Wiktionary） | CC BY-SA |
 | 例句 + 中文翻譯（線上） | [Tatoeba](https://tatoeba.org/) | CC BY 2.0 FR |
 
-- 答案庫有 1452 個常見字。挑選條件是：有考試標籤（國高中、全民英檢等級、TOEFL、IELTS）或詞頻夠高，而且不是複數或過去式這類變化形。總共約 8,600 個字可以猜。
+- 答案庫：5 個字母 1452 個、6 個字母 1749 個、7 個字母 1667 個常見字。挑選條件是：有考試標籤（國高中、全民英檢等級、TOEFL、IELTS）或詞頻夠高，而且不是複數或過去式這類變化形。可以猜的字總共約 4.7 萬個。
+- 離線字典依長度分成三個檔案（約 1MB / 1.7MB / 2.4MB），網頁版用到哪個長度才下載哪一份。
 - 沒網路時字典只會顯示離線的中文意思和詞形變化，例句和英文解釋需要連線。
 
 要重新產生字庫（例如調整答案的挑選條件）：
@@ -128,7 +145,7 @@ npm run typecheck
 npm run lint -w app
 ```
 
-`shared` 測顏色判斷（含重複字母）、困難模式、每日題目、簡轉繁；`server` 用真的 Socket.IO 連線測開房、加入、搶答、計分、排行榜、快速配對、時間到、斷線重連。
+`shared` 測顏色判斷（含重複字母）、困難模式、每日題目、5/6/7 字母字庫、Hangman 規則、簡轉繁；`server` 用真的 Socket.IO 連線測開房、加入、搶答、計分、排行榜、快速配對、時間到、斷線重連。
 
 ## 上架 App
 

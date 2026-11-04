@@ -1,0 +1,57 @@
+# 把網頁版部署到 GitHub Pages:https://<帳號>.github.io/<repo>/
+# 只有推到 repo 的預設分支時才會部署;也可以在 Actions 頁面手動執行。
+name: Deploy web
+
+on:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    if: github.ref_name == github.event.repository.default_branch
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Test
+        run: npm test
+
+      - name: Build web
+        working-directory: app
+        run: npx expo export --platform web
+        env:
+          EXPO_BASE_URL: /${{ github.event.repository.name }}
+
+      # GitHub Pages 沒有單頁應用的網址改寫:直接打開 /wordlee/cards 這類網址時會回 404.html,
+      # 所以放一份和 index.html 一樣的 404.html,讓 App 自己處理路由。
+      - run: cp app/dist/index.html app/dist/404.html
+
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: app/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5

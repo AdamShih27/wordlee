@@ -187,6 +187,7 @@ export class BattleServer {
       if (p.finished) return ack({ ok: false, error: '你已經完成這局了' });
 
       const word = String(rawWord ?? '').toLowerCase();
+      if (word.length !== room.answer.length) return ack({ ok: false, error: '字母數不對' });
       if (!isValidWord(word)) return ack({ ok: false, error: '不在字庫中' });
 
       const states = evaluateGuess(word, room.answer);

@@ -19,15 +19,27 @@ interface Props {
   /** 點每一行旁邊的字典按鈕 */
   onLookup?: (word: string) => void;
   maxTile?: number;
+  /** 單字長度(5–7) */
+  length?: number;
 }
 
-export function Board({ rows, current, revealingRow, shake, revealMs = 1500, maxRows = MAX_GUESSES, onLookup, maxTile = 62 }: Props) {
+export function Board({
+  rows,
+  current,
+  revealingRow,
+  shake,
+  revealMs = 1500,
+  maxRows = MAX_GUESSES,
+  onLookup,
+  maxTile = 62,
+  length = WORD_LENGTH,
+}: Props) {
   const [box, setBox] = useState({ w: 0, h: 0 });
-  const side = onLookup ? 40 : 0;
+  const side = onLookup ? (length > 5 ? 36 : 40) : 0;
   const tile = Math.floor(
     Math.max(
       24,
-      Math.min(maxTile, (box.w - side * 2 - GAP * (WORD_LENGTH - 1)) / WORD_LENGTH, (box.h - GAP * (maxRows - 1)) / maxRows),
+      Math.min(maxTile, (box.w - side * 2 - GAP * (length - 1)) / length, (box.h - GAP * (maxRows - 1)) / maxRows),
     ),
   );
 
@@ -37,7 +49,7 @@ export function Board({ rows, current, revealingRow, shake, revealMs = 1500, max
   };
 
   const flipMs = Math.min(320, revealMs / 3);
-  const stagger = (revealMs - flipMs) / (WORD_LENGTH - 1);
+  const stagger = (revealMs - flipMs) / (length - 1);
   const currentIndex = rows.length;
 
   return (
@@ -52,7 +64,7 @@ export function Board({ rows, current, revealingRow, shake, revealMs = 1500, max
             return (
               <ShakeRow key={r} shake={isCurrent ? shake : 0}>
                 <View style={{ width: side }} />
-                {Array.from({ length: WORD_LENGTH }, (_, c) => (
+                {Array.from({ length }, (_, c) => (
                   <Tile
                     key={c}
                     size={tile}

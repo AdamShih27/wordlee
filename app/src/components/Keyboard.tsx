@@ -11,9 +11,11 @@ interface Props {
   keyStates: Record<string, LetterState>;
   disabled?: boolean;
   keyHeight?: number;
+  /** Hangman 不需要「送出」和「刪除」 */
+  actionKeys?: boolean;
 }
 
-export function Keyboard({ onKey, keyStates, disabled, keyHeight = 54 }: Props) {
+export function Keyboard({ onKey, keyStates, disabled, keyHeight = 54, actionKeys = true }: Props) {
   const press = (key: string) => {
     if (Platform.OS !== 'web') Haptics.selectionAsync().catch(() => {});
     onKey(key);
@@ -24,15 +26,17 @@ export function Keyboard({ onKey, keyStates, disabled, keyHeight = 54 }: Props) 
       {ROWS.map((row, i) => (
         <View key={row} style={styles.row}>
           {i === 1 && <View style={{ flex: 0.5 }} />}
-          {i === 2 && <Key label="送出" wide height={keyHeight} onPress={() => press('enter')} testID="key-enter" />}
+          {i === 2 && actionKeys && <Key label="送出" wide height={keyHeight} onPress={() => press('enter')} testID="key-enter" />}
+          {i === 2 && !actionKeys && <View style={{ flex: 1.5 }} />}
           {row.split('').map((ch) => (
             <Key key={ch} label={ch.toUpperCase()} state={keyStates[ch]} height={keyHeight} onPress={() => press(ch)} testID={`key-${ch}`} />
           ))}
-          {i === 2 && (
+          {i === 2 && actionKeys && (
             <Key wide height={keyHeight} onPress={() => press('back')} testID="key-back" accessibilityLabel="刪除">
               <Icon name="backspace" size={22} color={C.text} />
             </Key>
           )}
+          {i === 2 && !actionKeys && <View style={{ flex: 1.5 }} />}
           {i === 1 && <View style={{ flex: 0.5 }} />}
         </View>
       ))}

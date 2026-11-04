@@ -1,6 +1,7 @@
 import { Tabs } from 'expo-router/js-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Icon } from '@/components/Icon';
+import { ONLINE_ENABLED } from '@/lib/config';
 import { C } from '@/lib/theme';
 
 export default function TabLayout() {
@@ -27,8 +28,17 @@ export default function TabLayout() {
         options={{ title: '遊戲', tabBarIcon: ({ color }) => <Icon name="game" color={color} size={24} /> }}
       />
       <Tabs.Screen
+        name="hangman"
+        options={{ title: 'Hangman', tabBarIcon: ({ color }) => <Icon name="spell" color={color} size={24} /> }}
+      />
+      <Tabs.Screen
         name="battle"
-        options={{ title: '對戰', tabBarIcon: ({ color }) => <Icon name="battle" color={color} size={24} /> }}
+        options={{
+          title: '對戰',
+          // 對戰和排行榜需要伺服器，先從分頁列隱藏（程式都還在）
+          href: ONLINE_ENABLED ? undefined : null,
+          tabBarIcon: ({ color }) => <Icon name="battle" color={color} size={24} />,
+        }}
       />
       <Tabs.Screen
         name="cards"
@@ -36,7 +46,11 @@ export default function TabLayout() {
       />
       <Tabs.Screen
         name="leaderboard"
-        options={{ title: '排行榜', tabBarIcon: ({ color }) => <Icon name="trophy" color={color} size={24} /> }}
+        options={{
+          title: '排行榜',
+          href: ONLINE_ENABLED ? undefined : null,
+          tabBarIcon: ({ color }) => <Icon name="trophy" color={color} size={24} />,
+        }}
       />
     </Tabs>
   );

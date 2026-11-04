@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { KEYS, load, save } from '@/lib/storage';
-import { offlineInfo, shortMeaning } from '@/lib/dictionary';
+import { ensureOffline, offlineInfo, shortMeaning } from '@/lib/dictionary';
 
 export interface VocabCard {
   word: string;
@@ -45,12 +45,14 @@ export function VocabProvider({ children }: { children: React.ReactNode }) {
 
   const value = useMemo<VocabContext>(() => {
     const set = new Set(cards.map((c) => c.word));
-    const add = (word: string) =>
-      update((c) => {
-        const w = word.toLowerCase();
-        if (c.some((x) => x.word === w)) return c;
-        return [{ word: w, zh: shortMeaning(w), phonetic: offlineInfo(w).phonetic, addedAt: Date.now() }, ...c];
-      });
+    const add = (word: string) => {
+      const w = word.toLowerCase();
+      // 先放進單字卡（按下去馬上有反應），離線字典載入後再補上中文摘要
+      update((c) => (c.some((x) => x.word === w) ? c : [{ word: w, zh: shortMeaning(w), phonetic: offlineInfo(w).phonetic, addedAt: Date.now() }, ...c]));
+      ensureOffline(w).then(() =>
+        update((c) => c.map((x) => (x.word === w && !x.zh ? { ...x, zh: shortMeaning(w), phonetic: offlineInfo(w).phonetic } : x))),
+      );
+    };
     const remove = (word: string) => update((c) => c.filter((x) => x.word !== word.toLowerCase()));
     return {
       cards,

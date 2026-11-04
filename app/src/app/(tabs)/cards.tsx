@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useDictionary } from '@/components/DictionarySheet';
 import { Icon } from '@/components/Icon';
 import { Button, IconButton, Segmented } from '@/components/ui';
-import { offlineInfo } from '@/lib/dictionary';
+import { useOfflineInfo } from '@/lib/dictionary';
 import { useVocab, type VocabCard } from '@/lib/vocab';
 import { C, MAX_WIDTH, radius } from '@/lib/theme';
 
@@ -169,7 +169,7 @@ function Review({ cards }: { cards: VocabCard[] }) {
   // 單字卡數量變了（新增/刪除）就重新排
   const words = order.filter((w) => cards.some((c) => c.word === w));
   const word = words[Math.min(i, words.length - 1)];
-  const info = useMemo(() => (word ? offlineInfo(word) : null), [word]);
+  const info = useOfflineInfo(word);
   if (!word || !info) return null;
 
   const native = Platform.OS !== 'web';

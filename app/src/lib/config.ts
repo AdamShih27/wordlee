@@ -24,3 +24,9 @@ export const SERVER_URL = resolveServerUrl();
  * 不連對戰伺服器、不查線上字典，只用打包在 App 裡的離線字典。
  */
 export const IS_DEMO = process.env.EXPO_PUBLIC_DEMO === '1';
+
+/**
+ * 連線對戰和排行榜（需要對戰伺服器）。目前先關閉;
+ * 架好伺服器後設定 EXPO_PUBLIC_ENABLE_ONLINE=1 和 EXPO_PUBLIC_SERVER_URL 就會打開。
+ */
+export const ONLINE_ENABLED = process.env.EXPO_PUBLIC_ENABLE_ONLINE === '1' && !IS_DEMO;

@@ -18,6 +18,8 @@ interface Options {
   /** 每一行翻完之後呼叫（用來存檔、算統計） */
   onRevealed?: (rows: Row[], status: GameStatus) => void;
   onError?: (message: string) => void;
+  /** 單字長度，預設 5 */
+  length?: number;
 }
 
 function statusOf(rows: Row[], max: number): GameStatus {
@@ -38,6 +40,7 @@ export function useGuessGame({
   revealMs = 1500,
   onRevealed,
   onError,
+  length = WORD_LENGTH,
 }: Options) {
   const [rows, setRows] = useState<Row[]>(initialRows);
   const [current, setCurrent] = useState('');
@@ -70,7 +73,7 @@ export function useGuessGame({
 
   const typeLetter = (ch: string) => {
     if (locked) return;
-    setCurrent((c) => (c.length < WORD_LENGTH ? c + ch.toLowerCase() : c));
+    setCurrent((c) => (c.length < length ? c + ch.toLowerCase() : c));
   };
 
   const backspace = () => {
@@ -85,7 +88,7 @@ export function useGuessGame({
 
   const submit = async () => {
     if (locked) return;
-    if (current.length < WORD_LENGTH) return fail('字母不足');
+    if (current.length < length) return fail('字母不足');
     setBusy(true);
     let res: EvalResult;
     try {

@@ -20,8 +20,10 @@ export async function save(key: string, value: unknown): Promise<void> {
 
 export const KEYS = {
   vocab: 'wordlee:vocab:v1',
-  stats: 'wordlee:stats:v1',
-  daily: (index: number) => `wordlee:daily:${index}`,
+  // 5 個字母沿用最早的 key,舊的進度和統計不會不見
+  stats: (length = 5) => (length === 5 ? 'wordlee:stats:v1' : `wordlee:stats:v1:${length}`),
+  daily: (index: number, length = 5) => (length === 5 ? `wordlee:daily:${index}` : `wordlee:daily:${length}:${index}`),
+  hangman: 'wordlee:hangman:v1',
   settings: 'wordlee:settings:v1',
   profile: 'wordlee:profile:v1',
   seenHelp: 'wordlee:seen-help',

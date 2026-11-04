@@ -1,3 +1,4 @@
+import { useEffect, useSyncExternalStore } from 'react';
 import { toTraditional } from '@wordlee/shared/src/s2t';
 import { IS_DEMO } from '@/lib/config';
 
@@ -20,8 +21,66 @@ interface OfflineEntry {
   lt_tr?: [string, string][];
 }
 
-// 用 require 讀大型 JSON,避免 TypeScript 去推導一百萬字元的型別
-const OFFLINE: Record<string, OfflineEntry> = require('@wordlee/shared/src/data/dict.json');
+type OfflineDict = Record<string, OfflineEntry>;
+
+/**
+ * 離線字典依單字長度分成三個檔案(5 字母約 1MB、6 字母 1.7MB、7 字母 2.4MB)。
+ * 用到哪個長度才載入哪一份，網頁版第一次打開不用一次下載全部。
+ */
+const LOADERS: Record<number, () => Promise<unknown>> = {
+  5: () => import('@wordlee/shared/src/data/dict-5.json'),
+  6: () => import('@wordlee/shared/src/data/dict-6.json'),
+  7: () => import('@wordlee/shared/src/data/dict-7.json'),
+};
+const loaded = new Map<number, OfflineDict>();
+const pending = new Map<number, Promise<void>>();
+
+// 每載入一份字典就 +1,讓畫面知道要重新查一次
+let loadVersion = 0;
+const listeners = new Set<() => void>();
+function subscribeLoads(fn: () => void) {
+  listeners.add(fn);
+  return () => {
+    listeners.delete(fn);
+  };
+}
+const getLoadVersion = () => loadVersion;
+
+function lengthLoaded(n: number) {
+  return loaded.has(n) || !LOADERS[n];
+}
+
+/** 確保這個長度的離線字典已載入（沒有對應檔案的長度直接完成）。 */
+export function ensureOffline(wordOrLength: string | number): Promise<void> {
+  const n = typeof wordOrLength === 'number' ? wordOrLength : wordOrLength.length;
+  if (lengthLoaded(n)) return Promise.resolve();
+  let p = pending.get(n);
+  if (!p) {
+    p = LOADERS[n]()
+      .then((m) => {
+        const mod = m as { default?: OfflineDict } & OfflineDict;
+        loaded.set(n, (mod.default ?? mod) as OfflineDict);
+        loadVersion++;
+        listeners.forEach((fn) => fn());
+      })
+      .catch(() => {
+        pending.delete(n); // 下次再試
+      });
+    pending.set(n, p);
+  }
+  return p;
+}
+
+export function isOfflineReady(word: string) {
+  return lengthLoaded(word.length);
+}
+
+function entryOf(word: string): OfflineEntry | undefined {
+  return loaded.get(word.length)?.[word];
+}
+
+// 最常用的 5 個字母先載入
+ensureOffline(5);
 
 export const POS_ZH: Record<string, string> = {
   'n.': '名詞',
@@ -97,15 +156,22 @@ export interface OfflineInfo {
   number: NumberInfo | null;
   lemma?: { word: string; label: string; zh: Meaning[] };
   found: boolean;
+  /** 這個長度的離線字典載入了沒（還沒載入時 found 一定是 false) */
+  ready: boolean;
 }
 
 const toMeanings = (t: [string, string][] = []): Meaning[] =>
   t.map(([pos, text]) => ({ pos, posZh: POS_ZH[pos] ?? (pos ? pos.replace(/\.$/, '') : ''), text }));
 
-export function offlineInfo(word: string): OfflineInfo {
+/**
+ * 查離線字典。`_loadVersion` 不參與計算，只是讓 React Compiler 知道字典載入後結果會變，
+ * 不要把舊的查詢結果快取住。
+ */
+export function offlineInfo(word: string, _loadVersion?: number): OfflineInfo {
   const w = word.toLowerCase();
-  const e = OFFLINE[w];
-  if (!e) return { word: w, zh: [], forms: [], number: null, found: false };
+  const e = entryOf(w);
+  const ready = isOfflineReady(w);
+  if (!e) return { word: w, zh: [], forms: [], number: null, found: false, ready };
 
   const forms = Object.entries(e.f ?? {})
     .filter(([k]) => FORM_ZH[k])
@@ -139,6 +205,7 @@ export function offlineInfo(word: string): OfflineInfo {
       ? { word: e.lemma, label: lemmaLabel || '變化形', zh: toMeanings(e.lt_tr).filter((m) => m.pos || !m.text.startsWith('[')) }
       : undefined,
     found: true,
+    ready: true,
   };
 }
 
@@ -150,7 +217,7 @@ export function shortMeaning(word: string, max = 2): string {
     .filter((m) => !m.text.startsWith('['))
     .slice(0, max)
     .map((m) => (m.pos ? `${m.pos} ${m.text}` : m.text))
-    .join(';');
+    .join('；');
 }
 
 // ───────────────────────── 線上資料 ─────────────────────────
@@ -269,4 +336,14 @@ export function fetchOnlineInfo(word: string): Promise<OnlineInfo> {
   // 失敗的結果不要快取，下次打開再試
   p.then((r) => r.status === 'error' && cache.delete(w));
   return p;
+}
+
+/** 元件用:取得離線字典資料，還沒載入時會自動載入並重新渲染。 */
+export function useOfflineInfo(word: string | undefined): OfflineInfo | null {
+  const version = useSyncExternalStore(subscribeLoads, getLoadVersion, getLoadVersion);
+  const w = word?.toLowerCase();
+  useEffect(() => {
+    if (w) ensureOffline(w);
+  }, [w]);
+  return w ? offlineInfo(w, version) : null;
 }

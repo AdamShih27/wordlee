@@ -1,5 +1,6 @@
 export type LetterState = 'correct' | 'present' | 'absent';
 
+/** 預設單字長度（每日挑戰、對戰都是 5 個字母） */
 export const WORD_LENGTH = 5;
 export const MAX_GUESSES = 6;
 

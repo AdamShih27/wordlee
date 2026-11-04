@@ -20,7 +20,7 @@ function ExampleRow({ word, states }: { word: string; states: (LetterState | und
 export function HelpSheet({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   return (
     <Sheet visible={visible} onClose={onClose} title="怎麼玩" testID="help-sheet">
-      <Text style={styles.p}>用 6 次機會猜出一個 5 個字母的英文單字。每猜一次，方塊的顏色會告訴你有多接近：</Text>
+      <Text style={styles.p}>用 6 次機會猜出一個英文單字（可以選 5、6 或 7 個字母）。每猜一次，方塊的顏色會告訴你有多接近：</Text>
       <ExampleRow word="crane" states={['correct']} />
       <Text style={styles.p}>
         <Text style={styles.b}>C</Text> 是<Text style={{ color: C.correct, fontWeight: '800' }}>綠色</Text>
@@ -51,7 +51,7 @@ export function HelpSheet({ visible, onClose }: { visible: boolean; onClose: () 
       <Text style={styles.p}>
         <Text style={styles.b}>每日挑戰</Text>：每天一題，所有人同一題，半夜 12 點換題，會記錄連勝。{'\n'}
         <Text style={styles.b}>練習模式</Text>：隨機出題，可以一直玩，不計入統計。{'\n'}
-        <Text style={styles.b}>對戰</Text>：跟朋友連線猜同一題，看誰最快解出來。
+        <Text style={styles.b}>Hangman</Text>：看中文意思，一個一個猜字母拼出英文單字，可以用你收藏的單字卡出題。
       </Text>
     </Sheet>
   );
@@ -71,16 +71,26 @@ function fmtCountdown(ms: number) {
   return `${h}:${m}:${sec}`;
 }
 
-export function StatsSheet({ visible, onClose, day }: { visible: boolean; onClose: () => void; day: number }) {
+export function StatsSheet({
+  visible,
+  onClose,
+  day,
+  length = 5,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  day: number;
+  length?: number;
+}) {
   const [stats, setStats] = useState<Stats>(emptyStats());
   const [left, setLeft] = useState(msToNextDay());
 
   useEffect(() => {
     if (!visible) return;
-    loadStats().then(setStats);
+    loadStats(length).then(setStats);
     const t = setInterval(() => setLeft(msToNextDay()), 1000);
     return () => clearInterval(t);
-  }, [visible]);
+  }, [visible, length]);
 
   // 昨天沒玩的話，連勝已經斷了
   const streak = stats.lastWonIndex !== null && stats.lastWonIndex >= day - 1 ? stats.currentStreak : 0;
@@ -88,7 +98,11 @@ export function StatsSheet({ visible, onClose, day }: { visible: boolean; onClos
   const maxDist = Math.max(1, ...stats.dist);
 
   return (
-    <Sheet visible={visible} onClose={onClose} title="每日挑戰統計" testID="stats-sheet">
+    <Sheet
+      visible={visible}
+      onClose={onClose}
+      title={length === 5 ? '每日挑戰統計' : `每日挑戰統計（${length} 個字母）`}
+      testID="stats-sheet">
       <View style={styles.statRow}>
         <Stat n={stats.played} label="已玩" />
         <Stat n={winRate} label="勝率 %" />

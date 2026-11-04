@@ -11,10 +11,10 @@
     - ENABLE word list (Public Domain)  https://github.com/dolph/dictionary
       作為「可以猜的合法單字」的主要來源
 
-輸出 (shared/src/data/):
-    answers.json  可能成為答案的常見單字(已打亂順序,每日題目依序取)
-    valid.json    其他可以猜、但不會當答案的單字
-    dict.json     離線字典:音標、中文翻譯(繁體)、詞形變化
+輸出 (shared/src/data/,N = 5、6、7 個字母):
+    answers-N.json  可能成為答案的常見單字(已打亂順序,每日題目依序取)
+    valid-N.json    其他可以猜、但不會當答案的單字
+    dict-N.json     離線字典:音標、中文翻譯(繁體)、詞形變化
     s2t.json      精簡版簡→繁對照表(線上例句若只有簡體翻譯,App 端用它轉成繁體)
 """
 import csv
@@ -38,7 +38,10 @@ ANSWER_BLOCKLIST = {
     "dildo", "boobs", "porno", "horny", "semen", "sperm", "rapes", "raped", "rapist",
     "nazis", "faggy", "gooks", "kikes", "wanks", "turds", "crapy", "sluts", "bitty",
     "fucks", "shits", "tits", "booby", "titty", "kinky", "pubic", "anal", "enema",
-    "vomit",
+    "vomit", "faggot", "nigger", "bitches", "whores", "fucker", "fucking", "pissed",
+    "orgasm", "erotic", "condom", "vagina", "breast", "rapist", "molest", "porn",
+    "hooker", "pervert", "nipple", "testes", "scrotum", "semens", "sodomy", "incest",
+    "suicide", "bastard", "slutty", "killer",
 }
 
 cc = OpenCC("s2twp")  # 簡體 → 台灣正體(含常用詞彙轉換)
@@ -71,15 +74,14 @@ def clean_translation(tr: str) -> list:
     return out
 
 
-def main(ecdict_path: str, enable_path: str) -> None:
-    enable = {w.strip() for w in open(enable_path, encoding="utf-8") if len(w.strip()) == 5}
+LENGTHS = (5, 6, 7)
+# 每種長度各自打亂答案順序;5 個字母沿用最早的種子,已經出過的每日題目才不會變
+SEEDS = {5: 20261104, 6: 20261106, 7: 20261107}
 
-    rows = {}
-    with open(ecdict_path, newline="", encoding="utf-8") as f:
-        for r in csv.DictReader(f):
-            w = r["word"]
-            if len(w) == 5 and w.isascii() and w.isalpha() and w.islower():
-                rows[w] = r
+
+def build_length(n: int, rows: dict, enable_all: set, ecdict_path: str, lemma_tr: dict):
+    enable = {w for w in enable_all if len(w) == n}
+    rows = {w: r for w, r in rows.items() if len(w) == n}
 
     def is_abbr(r):
         return r["translation"].lstrip().startswith("abbr.")
@@ -110,7 +112,7 @@ def main(ecdict_path: str, enable_path: str) -> None:
         if (tags & COMMON_TAGS and (f == 0 or f <= 20000)) or (0 < f <= 12000):
             answers.append(w)
 
-    rng = random.Random(20261104)
+    rng = random.Random(SEEDS[n])
     rng.shuffle(answers)
     answer_set = set(answers)
 
@@ -131,30 +133,46 @@ def main(ecdict_path: str, enable_path: str) -> None:
         if "0" in ex and ex["0"] != w:
             entry["lemma"] = ex["0"]
             entry["lt"] = ex.get("1", "")
-            # 原形可能不是 5 個字母,所以回頭查整份 ECDICT
-            entry["_needs_lemma"] = True
+            if ex["0"] in lemma_tr:
+                entry["lt_tr"] = lemma_tr[ex["0"]][:3]
         dictionary[w] = entry
 
-    lemmas_needed = {e["lemma"] for e in dictionary.values() if e.get("_needs_lemma")}
-    lemma_tr = {}
-    with open(ecdict_path, newline="", encoding="utf-8") as f:
-        for r in csv.DictReader(f):
-            if r["word"] in lemmas_needed and r["translation"].strip():
-                lemma_tr[r["word"]] = clean_translation(r["translation"])
-    for e in dictionary.values():
-        if e.pop("_needs_lemma", False) and e["lemma"] in lemma_tr:
-            e["lt_tr"] = lemma_tr[e["lemma"]][:3]
-
-    OUT.mkdir(parents=True, exist_ok=True)
-    (OUT / "answers.json").write_text(json.dumps(answers), encoding="utf-8")
-    (OUT / "valid.json").write_text(json.dumps(sorted(valid - answer_set)), encoding="utf-8")
-    (OUT / "dict.json").write_text(
+    (OUT / f"answers-{n}.json").write_text(json.dumps(answers), encoding="utf-8")
+    (OUT / f"valid-{n}.json").write_text(json.dumps(sorted(valid - answer_set)), encoding="utf-8")
+    (OUT / f"dict-{n}.json").write_text(
         json.dumps(dictionary, ensure_ascii=False, separators=(",", ":")), encoding="utf-8"
     )
+    print(f"[{n}] answers={len(answers)} valid_extra={len(valid - answer_set)} dict={len(dictionary)}")
+
+
+def main(ecdict_path: str, enable_path: str) -> None:
+    enable = {w.strip() for w in open(enable_path, encoding="utf-8") if len(w.strip()) in LENGTHS}
+
+    rows, all_tr = {}, {}
+    with open(ecdict_path, newline="", encoding="utf-8") as f:
+        for r in csv.DictReader(f):
+            w = r["word"]
+            if w.isascii() and w.isalpha() and w.islower():
+                if r["translation"].strip():
+                    all_tr[w] = r["translation"]
+                if len(w) in LENGTHS:
+                    rows[w] = r
+
+    # 變化形的原形(例如 geese → goose)可能是任何長度,先把需要的原形翻譯準備好
+    lemmas = set()
+    for w, r in rows.items():
+        ex = parse_exchange(r["exchange"])
+        if "0" in ex and ex["0"] != w:
+            lemmas.add(ex["0"])
+    lemma_tr = {w: clean_translation(all_tr[w]) for w in lemmas if w in all_tr}
+
+    OUT.mkdir(parents=True, exist_ok=True)
+    for n in LENGTHS:
+        build_length(n, rows, enable, ecdict_path, lemma_tr)
+
     s2t = build_s2t()
     (OUT / "s2t.json").write_text(json.dumps(s2t, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     print(f"s2t chars={len(s2t['c']) // 2} phrases={len(s2t['p'])}")
-    print(f"answers={len(answers)} valid_extra={len(valid - answer_set)} dict={len(dictionary)}")
 
 
 def build_s2t() -> dict:

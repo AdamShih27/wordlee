@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { evaluateGuess, mergeKeyStates, isSolved, toEmojiGrid } from './evaluate';
-import { ANSWERS, isValidWord, dailyAnswer, dailyIndex } from './words';
+import { ANSWERS, answersFor, answerForDay, isValidWord, dailyAnswer, dailyIndex, LENGTHS } from './words';
 
 const short = (s: string[]) => s.map((x) => x[0]).join(''); // c/p/a
 
@@ -45,11 +45,29 @@ test('emoji grid', () => {
 test('word lists', () => {
   assert.ok(ANSWERS.length > 1000);
   assert.ok(ANSWERS.every((w) => /^[a-z]{5}$/.test(w)));
-  assert.ok(ANSWERS.every(isValidWord));
+  assert.ok(ANSWERS.every((w) => isValidWord(w)));
   assert.ok(isValidWord('crane'));
   assert.ok(isValidWord('BOOKS'));
   assert.ok(!isValidWord('abcde'));
   assert.ok(!isValidWord('cran'));
+});
+
+test('6 and 7 letter word lists', () => {
+  for (const n of LENGTHS) {
+    const list = answersFor(n);
+    assert.ok(list.length > 1000, `length ${n}`);
+    assert.ok(list.every((w) => w.length === n && /^[a-z]+$/.test(w) && isValidWord(w, n)));
+    assert.equal(answerForDay(3, n).length, n);
+  }
+  assert.ok(isValidWord('potato'));
+  assert.ok(isValidWord('stomach', 7));
+  assert.ok(!isValidWord('stomach', 5), 'length must match when given');
+  assert.ok(!isValidWord('abcdefgh'), '8 letters is not supported');
+});
+
+test('5-letter daily puzzles keep their order', () => {
+  assert.equal(answerForDay(3), 'exact');
+  assert.equal(answerForDay(3, 5), 'exact');
 });
 
 test('daily answer changes per local day and is stable', () => {

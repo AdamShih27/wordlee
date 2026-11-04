@@ -25,10 +25,10 @@ export const emptyStats = (): Stats => ({
   lastWonIndex: null,
 });
 
-export const loadStats = () => load<Stats>(KEYS.stats, emptyStats());
+export const loadStats = (length = 5) => load<Stats>(KEYS.stats(length), emptyStats());
 
-export async function recordDaily(dayIndex: number, won: boolean, guesses: number): Promise<Stats> {
-  const s = await loadStats();
+export async function recordDaily(dayIndex: number, won: boolean, guesses: number, length = 5): Promise<Stats> {
+  const s = await loadStats(length);
   if (s.lastPlayedIndex === dayIndex) return s; // 同一天不重複計算
   s.played += 1;
   s.lastPlayedIndex = dayIndex;
@@ -42,6 +42,6 @@ export async function recordDaily(dayIndex: number, won: boolean, guesses: numbe
   } else {
     s.currentStreak = 0;
   }
-  await save(KEYS.stats, s);
+  await save(KEYS.stats(length), s);
   return s;
 }
