@@ -173,7 +173,11 @@ function WordDetails({ word, onOpenWord }: { word: string; onOpenWord: (w: strin
 
       <SectionTitle>例句</SectionTitle>
       {!online && <Loading />}
-      {online && <Examples word={word} online={online} />}
+      {online?.status === 'unavailable' ? (
+        <Text style={styles.muted}>試玩版只有離線字典。例句、英文解釋和發音要在安裝版才看得到。</Text>
+      ) : (
+        online && <Examples word={word} online={online} />
+      )}
 
       {online?.status === 'ok' && online.english.length > 0 && (
         <>

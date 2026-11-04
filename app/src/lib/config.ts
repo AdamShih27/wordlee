@@ -18,3 +18,9 @@ function resolveServerUrl(): string {
 }
 
 export const SERVER_URL = resolveServerUrl();
+
+/**
+ * 試玩版(EXPO_PUBLIC_DEMO=1 打包）:放在不能連外部網站的地方（例如 claude.ai 的分享頁）。
+ * 不連對戰伺服器、不查線上字典，只用打包在 App 裡的離線字典。
+ */
+export const IS_DEMO = process.env.EXPO_PUBLIC_DEMO === '1';

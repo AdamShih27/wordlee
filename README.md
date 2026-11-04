@@ -58,6 +58,15 @@ App 會自動連到電腦上的對戰伺服器（用電腦在區網的 IP + port
 EXPO_PUBLIC_SERVER_URL=https://your-server.example.com
 ```
 
+### 試玩版(不需要伺服器)
+
+只想試單人模式的話，可以打包一個純靜態的試玩版。這個版本不連對戰伺服器、不查線上字典，只用 App 裡內建的離線字典，所以可以放在任何靜態網頁空間：
+
+```bash
+cd app
+EXPO_PUBLIC_DEMO=1 npx expo export --platform web
+```
+
 ## 積分規則
 
 目前是**暫定版**，全部集中在 [`server/src/scoring.ts`](server/src/scoring.ts)：

@@ -5,7 +5,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { LeaderboardEntry } from '@wordlee/shared';
 import { Icon } from '@/components/Icon';
 import { Button } from '@/components/ui';
-import { SERVER_URL } from '@/lib/config';
+import { IS_DEMO, SERVER_URL } from '@/lib/config';
+import { DemoNotice } from '@/components/DemoNotice';
 import { useProfile } from '@/lib/profile';
 import { C, MAX_WIDTH, radius } from '@/lib/theme';
 
@@ -21,6 +22,7 @@ export default function LeaderboardScreen() {
   const [rules, setRules] = useState<string | null>(null);
 
   const fetchAll = useCallback(async () => {
+    if (IS_DEMO) return;
     try {
       const [a, b] = await Promise.all([
         fetch(`${SERVER_URL}/api/leaderboard?limit=100`),
@@ -58,6 +60,11 @@ export default function LeaderboardScreen() {
         <Text style={styles.title}>排行榜</Text>
       </View>
       <View style={styles.body}>
+        {IS_DEMO && (
+          <DemoNotice icon="trophy" title="試玩版沒有排行榜">
+            排行榜記錄的是連線對戰的積分，等對戰伺服器架好就會出現。
+          </DemoNotice>
+        )}
         {me && (
           <View style={styles.meCard} testID="my-rank">
             <View>
@@ -72,7 +79,7 @@ export default function LeaderboardScreen() {
           </View>
         )}
 
-        {error && !list ? (
+        {IS_DEMO ? null : error && !list ? (
           <View style={styles.center}>
             <Icon name="wifiOff" size={36} color={C.textMuted} />
             <Text style={styles.muted}>連不到伺服器({SERVER_URL})</Text>

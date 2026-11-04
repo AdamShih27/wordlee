@@ -10,11 +10,8 @@ import { C, MAX_WIDTH, radius } from '@/lib/theme';
 
 type View_ = 'list' | 'review';
 
-function confirm(message: string, onYes: () => void) {
-  if (Platform.OS === 'web') {
-    if (typeof window !== 'undefined' && window.confirm(message)) onYes();
-    return;
-  }
+/** 手機用系統對話框確認;網頁版的 confirm() 在嵌入頁面裡常被擋，改成在卡片上直接確認。 */
+function confirmNative(message: string, onYes: () => void) {
   Alert.alert('確認', message, [
     { text: '取消', style: 'cancel' },
     { text: '刪除', style: 'destructive', onPress: onYes },
@@ -70,6 +67,7 @@ function CardList() {
   const dictionary = useDictionary();
   const [q, setQ] = useState('');
   const [sort, setSort] = useState<'new' | 'az'>('new');
+  const [confirming, setConfirming] = useState<string | null>(null);
 
   const list = useMemo(() => {
     const k = q.trim().toLowerCase();
@@ -115,13 +113,34 @@ function CardList() {
               </Text>
               <Text style={styles.cardDate}>收藏於 {new Date(item.addedAt).toLocaleDateString('zh-TW')}</Text>
             </View>
-            <IconButton
-              name="trash"
-              label={`刪除 ${item.word}`}
-              size={20}
-              color={C.textFaint}
-              onPress={() => confirm(`要把「${item.word}」從單字卡移除嗎？`, () => vocab.remove(item.word))}
-            />
+            {confirming === item.word ? (
+              <View style={styles.confirmRow}>
+                <Button small title="取消" variant="ghost" onPress={() => setConfirming(null)} />
+                <Button
+                  small
+                  title="刪除"
+                  variant="danger"
+                  testID={`confirm-delete-${item.word}`}
+                  onPress={() => {
+                    vocab.remove(item.word);
+                    setConfirming(null);
+                  }}
+                />
+              </View>
+            ) : (
+              <IconButton
+                name="trash"
+                label={`刪除 ${item.word}`}
+                size={20}
+                color={C.textFaint}
+                testID={`delete-${item.word}`}
+                onPress={() =>
+                  Platform.OS === 'web'
+                    ? setConfirming(item.word)
+                    : confirmNative(`要把「${item.word}」從單字卡移除嗎？`, () => vocab.remove(item.word))
+                }
+              />
+            )}
           </Pressable>
         )}
         ListEmptyComponent={<Text style={styles.emptyText}>找不到符合的單字</Text>}
@@ -288,6 +307,7 @@ const styles = StyleSheet.create({
     borderLeftWidth: 4,
     borderLeftColor: C.primary,
   },
+  confirmRow: { flexDirection: 'row', gap: 4, alignItems: 'center' },
   cardHead: { flexDirection: 'row', alignItems: 'baseline', gap: 8 },
   cardWord: { fontSize: 20, fontWeight: '800', color: C.text },
   cardPh: { fontSize: 13, color: C.textMuted },

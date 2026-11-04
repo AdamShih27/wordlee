@@ -1,4 +1,5 @@
 import { toTraditional } from '@wordlee/shared/src/s2t';
+import { IS_DEMO } from '@/lib/config';
 
 /**
  * 字典資料來源：
@@ -167,7 +168,8 @@ export interface Example {
 }
 
 export interface OnlineInfo {
-  status: 'ok' | 'notfound' | 'error';
+  /** unavailable：試玩版不查線上資料 */
+  status: 'ok' | 'notfound' | 'error' | 'unavailable';
   phonetic?: string;
   audio?: string;
   english: EnglishSense[];
@@ -253,6 +255,7 @@ async function fetchExamples(word: string): Promise<Example[]> {
 }
 
 export function fetchOnlineInfo(word: string): Promise<OnlineInfo> {
+  if (IS_DEMO) return Promise.resolve({ status: 'unavailable', english: [], examples: [] });
   const w = word.toLowerCase();
   const hit = cache.get(w);
   if (hit) return hit;

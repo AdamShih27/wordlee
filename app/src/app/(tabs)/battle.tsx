@@ -11,7 +11,8 @@ import { Tile } from '@/components/Tile';
 import { useToast } from '@/components/Toast';
 import { Button, Chip, SectionTitle } from '@/components/ui';
 import { useBattle, type RoundInfo } from '@/lib/battle';
-import { SERVER_URL } from '@/lib/config';
+import { IS_DEMO, SERVER_URL } from '@/lib/config';
+import { DemoNotice } from '@/components/DemoNotice';
 import { useProfile } from '@/lib/profile';
 import { useGuessGame } from '@/lib/useGuessGame';
 import { usePhysicalKeyboard } from '@/lib/usePhysicalKeyboard';
@@ -23,7 +24,7 @@ type Battle = ReturnType<typeof useBattle>;
 export default function BattleScreen() {
   const insets = useSafeAreaInsets();
   const profile = useProfile();
-  const battle = useBattle(profile.playerId, profile.name, profile.ready);
+  const battle = useBattle(profile.playerId, profile.name, profile.ready && !IS_DEMO);
   const toast = useToast();
   const { room, round, end } = battle;
 
@@ -34,14 +35,20 @@ export default function BattleScreen() {
       {toast.element}
       <View style={styles.header}>
         <Text style={styles.title}>連線對戰</Text>
-        <View style={styles.status}>
-          <View style={[styles.dot, { backgroundColor: battle.connected ? C.correct : C.danger }]} />
-          <Text style={styles.statusText}>{battle.connected ? '已連線' : '未連線'}</Text>
-        </View>
+        {!IS_DEMO && (
+          <View style={styles.status}>
+            <View style={[styles.dot, { backgroundColor: battle.connected ? C.correct : C.danger }]} />
+            <Text style={styles.statusText}>{battle.connected ? '已連線' : '未連線'}</Text>
+          </View>
+        )}
       </View>
 
       <View style={styles.body}>
-        {!battle.connected ? (
+        {IS_DEMO ? (
+          <DemoNotice icon="battle" title="試玩版沒有連線對戰">
+            對戰需要連到 Wordlee 的對戰伺服器，試玩版先開放單人遊戲、字典和單字卡。
+          </DemoNotice>
+        ) : !battle.connected ? (
           <Offline battle={battle} />
         ) : inGame ? (
           <Match battle={battle} round={round} myId={profile.playerId} toast={toast.show} />
