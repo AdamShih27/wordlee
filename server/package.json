@@ -1,0 +1,23 @@
+{
+  "name": "@wordlee/server",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Wordlee 連線對戰與排行榜伺服器 (Socket.IO)",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "tsx src/index.ts",
+    "test": "node --import tsx --test src/*.test.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@wordlee/shared": "*",
+    "socket.io": "^4.8.4",
+    "tsx": "^4.23.15"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "socket.io-client": "^4.8.4",
+    "typescript": "~6.0.3"
+  }
+}

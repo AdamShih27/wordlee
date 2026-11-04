@@ -1,0 +1,16 @@
+{
+  "name": "wordlee",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": ["app", "server", "shared"],
+  "scripts": {
+    "web": "npm run web -w app",
+    "app": "npm run start -w app",
+    "server": "npm run dev -w server",
+    "test": "npm test -w shared && npm test -w server",
+    "typecheck": "npm run typecheck -w shared && npm run typecheck -w server && npm run typecheck -w app"
+  },
+  "engines": {
+    "node": ">=22.13"
+  }
+}

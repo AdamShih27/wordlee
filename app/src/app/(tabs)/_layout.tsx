@@ -1,0 +1,43 @@
+import { Tabs } from 'expo-router/js-tabs';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Icon } from '@/components/Icon';
+import { C } from '@/lib/theme';
+
+export default function TabLayout() {
+  const insets = useSafeAreaInsets();
+  return (
+    <Tabs
+      screenOptions={{
+        headerShown: false,
+        tabBarActiveTintColor: C.primary,
+        tabBarInactiveTintColor: C.textFaint,
+        // 中文標籤比英文高，預設高度會切到字，所以自己算高度（含 iPhone 底部安全區）
+        tabBarStyle: {
+          backgroundColor: C.bg,
+          borderTopColor: C.border,
+          height: 60 + insets.bottom,
+          paddingTop: 6,
+          paddingBottom: insets.bottom + 6,
+        },
+        tabBarLabelStyle: { fontWeight: '700', fontSize: 11, lineHeight: 15 },
+        sceneStyle: { backgroundColor: C.bg },
+      }}>
+      <Tabs.Screen
+        name="index"
+        options={{ title: '遊戲', tabBarIcon: ({ color }) => <Icon name="game" color={color} size={24} /> }}
+      />
+      <Tabs.Screen
+        name="battle"
+        options={{ title: '對戰', tabBarIcon: ({ color }) => <Icon name="battle" color={color} size={24} /> }}
+      />
+      <Tabs.Screen
+        name="cards"
+        options={{ title: '單字卡', tabBarIcon: ({ color }) => <Icon name="cards" color={color} size={24} /> }}
+      />
+      <Tabs.Screen
+        name="leaderboard"
+        options={{ title: '排行榜', tabBarIcon: ({ color }) => <Icon name="trophy" color={color} size={24} /> }}
+      />
+    </Tabs>
+  );
+}

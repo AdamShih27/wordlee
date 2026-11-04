@@ -1,0 +1,17 @@
+{
+  "name": "@wordlee/shared",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Wordlee 共用的遊戲邏輯、字庫與連線協定(App 與 Server 共用)",
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "test": "node --import tsx --test src/*.test.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "tsx": "^4.20.0",
+    "typescript": "~6.0.3"
+  }
+}
