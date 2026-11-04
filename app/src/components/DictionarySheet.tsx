@@ -211,6 +211,17 @@ function WordDetails({ word, onOpenWord }: { word: string; onOpenWord: (w: strin
           ))}
         </>
       )}
+      {online && !(online.status === 'ok' && online.english.length > 0) && offline.en.length > 0 && (
+        <>
+          <SectionTitle>英文解釋</SectionTitle>
+          {offline.en.map((d, i) => (
+            <Text key={i} style={styles.def}>
+              <Text style={styles.enPos}>{d.pos} </Text>
+              {d.text}
+            </Text>
+          ))}
+        </>
+      )}
       {online?.status === 'error' && (
         <Text style={styles.muted}>
           <Icon name="wifiOff" size={14} color={C.textMuted} /> 英文解釋和發音暫時載入失敗（可能是網路不穩），等一下再打開試試。
@@ -229,7 +240,7 @@ function Examples({ word, online }: { word: string; online: OnlineInfo }) {
     .filter((x): x is string => !!x)
     .slice(0, 2)
     .map((en) => ({ en, zh: undefined as string | undefined }));
-  const list = [...online.examples, ...fromDefs].slice(0, 4);
+  const list = [...online.examples.slice(0, 3), ...fromDefs].slice(0, 4);
   if (list.length === 0) return <Text style={styles.muted}>暫時找不到例句。</Text>;
   return (
     <View style={{ gap: 10 }}>

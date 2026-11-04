@@ -1,13 +1,25 @@
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { Animated, Platform, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Animated,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   answersFor,
+  containsWord,
   guessLetter,
   HANGMAN_LIVES,
   hangmanView,
   LENGTHS,
+  maskWord,
   type LetterState,
 } from '@wordlee/shared';
 import { useDictionary } from '@/components/DictionarySheet';
@@ -16,7 +28,7 @@ import { Keyboard } from '@/components/Keyboard';
 import { ResultPanel } from '@/components/ResultPanel';
 import { Tile } from '@/components/Tile';
 import { Button, Segmented } from '@/components/ui';
-import { useOfflineInfo } from '@/lib/dictionary';
+import { fetchOnlineInfo, useOfflineInfo, type OnlineInfo } from '@/lib/dictionary';
 import { KEYS, load, save } from '@/lib/storage';
 import { usePhysicalKeyboard } from '@/lib/usePhysicalKeyboard';
 import { useVocab, type VocabCard } from '@/lib/vocab';
@@ -44,9 +56,18 @@ function pickCard(cards: VocabCard[], prev?: string): string | null {
   return pool[Math.floor(Math.random() * pool.length)].word;
 }
 
-/** 中文提示裡如果直接出現英文答案（例如「book 的複數」），先遮起來。 */
-function maskWord(text: string, word: string) {
-  return text.replace(new RegExp(word, 'gi'), '＿'.repeat(2));
+function pickExamples(sentences: string[], max: number): string[] {
+  const scored = [...new Set(sentences)].sort((a, b) => Math.abs(a.length - 60) - Math.abs(b.length - 60));
+  const picked: string[] = [];
+  const openings = new Set<string>();
+  for (const s of scored) {
+    const opening = s.toLowerCase().split(/\s+/).slice(0, 2).join(' ');
+    if (openings.has(opening)) continue;
+    openings.add(opening);
+    picked.push(s);
+    if (picked.length >= max) break;
+  }
+  return picked;
 }
 
 export default function HangmanScreen() {
@@ -106,7 +127,7 @@ export default function HangmanScreen() {
       <View style={styles.header}>
         <View>
           <Text style={styles.title}>Hangman</Text>
-          <Text style={styles.subtitle}>看中文意思，拼出英文單字</Text>
+          <Text style={styles.subtitle}>看英文解釋和例句，拼出單字</Text>
         </View>
         <View style={styles.streak} accessibilityLabel={`連續答對 ${streak} 題，最佳 ${best} 題`}>
           <Text style={styles.streakN}>{streak}</Text>
@@ -162,10 +183,49 @@ function HangmanGame({
   const over = view.status !== 'playing';
 
   const card = vocab.cards.find((c) => c.word === word);
+  const [online, setOnline] = useState<OnlineInfo | null>(null);
+  const [showZh, setShowZh] = useState(false);
+
+  // 例句（和沒有離線英文解釋時的英文解釋）要上網拿
+  useEffect(() => {
+    let alive = true;
+    fetchOnlineInfo(word).then((r) => alive && setOnline(r));
+    return () => {
+      alive = false;
+    };
+  }, [word]);
+
+  // 提示裡出現答案或它的變化形(cranes、craned…)都要挖空
+  const forms = [...(info?.forms.map((f) => f.value) ?? []), ...(info?.lemma ? [info.lemma.word] : [])];
+  const mask = (t: string) => maskWord(t, word, forms);
+
+  // 英文解釋:離線(WordNet)優先，沒有的話用線上的;第一條太短就多給一條
+  const enSource =
+    info?.en.length
+      ? info.en
+      : online?.status === 'ok'
+        ? online.english.flatMap((sense) => sense.definitions.slice(0, 1).map((d) => ({ pos: sense.pos, text: d.text })))
+        : [];
+  const enDefs = enSource.slice(0, enSource[0] && enSource[0].text.length < 40 ? 2 : 1);
+
+  // 例句:只挑真的有用到這個字的句子;太短的句子(I'm _____.)沒什麼提示作用，
+  // 所以偏好 40~90 字左右、開頭不一樣的句子
+  const examples = online
+    ? pickExamples(
+        [
+          ...online.examples.map((e) => e.en),
+          ...online.english.flatMap((sense) => sense.definitions.map((d) => d.example ?? '')),
+        ].filter((t) => t && containsWord(t, word, forms)),
+        height < 700 ? 1 : 2,
+      )
+    : [];
+
   const meanings = (info?.zh.length ? info.zh : (info?.lemma?.zh ?? []))
     .filter((m) => !m.text.startsWith('['))
     .slice(0, 2);
   const hintFallback = card?.zh;
+  const loadingEnglish = enDefs.length === 0 && !online;
+  const noEnglish = enDefs.length === 0 && !!online && examples.length === 0;
 
   const onKey = (key: string) => {
     if (over) {
@@ -189,19 +249,56 @@ function HangmanGame({
 
   return (
     <View style={{ flex: 1 }}>
+      {/* 提示很長或螢幕很小時，上半部可以捲動，鍵盤固定在下面 */}
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 8 }} showsVerticalScrollIndicator={false}>
       <View style={styles.hint} testID="hangman-hint">
-        <Text style={styles.hintLabel}>中文提示 · {word.length} 個字母</Text>
-        {meanings.length > 0 ? (
-          meanings.map((m, i) => (
-            <Text key={i} style={styles.hintText}>
-              {m.posZh ? <Text style={styles.hintPos}>{m.posZh} </Text> : null}
-              {maskWord(m.text, word)}
-            </Text>
-          ))
-        ) : hintFallback ? (
-          <Text style={styles.hintText}>{maskWord(hintFallback, word)}</Text>
+        <Text style={styles.hintLabel}>英文提示 · {word.length} 個字母</Text>
+        {loadingEnglish && <ActivityIndicator color={C.primary} style={{ alignSelf: 'flex-start' }} />}
+        {enDefs.map((d, i) => (
+          <Text key={i} style={styles.hintText} testID="hangman-definition">
+            <Text style={styles.enPos}>{d.pos} </Text>
+            {mask(d.text)}
+          </Text>
+        ))}
+
+        {(examples.length > 0 || !online) && (
+          <View style={styles.examples}>
+            <Text style={styles.hintLabel}>例句</Text>
+            {!online ? (
+              <Text style={styles.muted}>載入例句…</Text>
+            ) : (
+              examples.map((t, i) => (
+                <Text key={i} style={styles.example} testID="hangman-example">
+                  {mask(t)}
+                </Text>
+              ))
+            )}
+          </View>
+        )}
+        {online?.status === 'unavailable' && <Text style={styles.muted}>試玩版沒有例句（要連網路）。</Text>}
+
+        {showZh || over || noEnglish ? (
+          <View style={styles.zhBox} testID="hangman-zh">
+            <Text style={styles.hintLabel}>中文</Text>
+            {meanings.length > 0 ? (
+              meanings.map((m, i) => (
+                <Text key={i} style={styles.zhText}>
+                  {m.posZh ? <Text style={styles.hintPos}>{m.posZh} </Text> : null}
+                  {mask(m.text)}
+                </Text>
+              ))
+            ) : (
+              <Text style={styles.zhText}>{hintFallback ? mask(hintFallback) : '找不到中文解釋'}</Text>
+            )}
+          </View>
         ) : (
-          <Text style={styles.hintText}>載入中…</Text>
+          <Pressable
+            accessibilityRole="button"
+            testID="show-zh"
+            onPress={() => setShowZh(true)}
+            style={({ pressed }) => [styles.zhButton, pressed && { opacity: 0.7 }]}>
+            <Text style={styles.zhButtonText}>想不到？看中文提示</Text>
+          </Pressable>
         )}
       </View>
 
@@ -219,8 +316,7 @@ function HangmanGame({
       <Text style={styles.wrong} testID="hangman-wrong">
         {view.wrong.length ? `猜錯：${view.wrong.map((w) => w.toUpperCase()).join(' ')}` : ' '}
       </Text>
-
-      <View style={{ flex: 1 }} />
+      </ScrollView>
 
       <View style={{ paddingBottom: 10 }}>
         {over ? (
@@ -319,9 +415,26 @@ const styles = StyleSheet.create({
     borderColor: C.primaryLight,
   },
   hintLabel: { fontSize: 12, fontWeight: '800', color: C.textMuted, letterSpacing: 0.5 },
-  hintText: { fontSize: 18, color: C.text, lineHeight: 26 },
+  hintText: { fontSize: 17, color: C.text, lineHeight: 24 },
   hintPos: { color: C.primary, fontWeight: '800', fontSize: 15 },
-  balloons: { flexDirection: 'row', justifyContent: 'center', gap: 10, marginTop: 16, height: 64 },
+  enPos: { color: C.primary, fontWeight: '800', fontStyle: 'italic', fontSize: 15 },
+  examples: { gap: 4, marginTop: 6 },
+  example: { fontSize: 16, color: C.text, lineHeight: 23, fontStyle: 'italic' },
+  muted: { fontSize: 13, color: C.textMuted },
+  zhBox: { gap: 2, marginTop: 6, paddingTop: 8, borderTopWidth: 1, borderTopColor: C.primaryLight },
+  zhText: { fontSize: 16, color: C.text, lineHeight: 23 },
+  zhButton: {
+    alignSelf: 'flex-start',
+    marginTop: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: C.primaryLight,
+    backgroundColor: C.bg,
+  },
+  zhButtonText: { color: C.primary, fontWeight: '700', fontSize: 13 },
+  balloons: { flexDirection: 'row', justifyContent: 'center', gap: 10, marginTop: 14, height: 60 },
   balloonWrap: { alignItems: 'center', width: 30 },
   balloon: {
     width: 28,

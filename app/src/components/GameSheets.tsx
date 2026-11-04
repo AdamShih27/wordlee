@@ -50,7 +50,7 @@ export function HelpSheet({ visible, onClose }: { visible: boolean; onClose: () 
       <SectionTitle>模式</SectionTitle>
       <Text style={styles.p}>
         <Text style={styles.b}>Wordlee</Text>：選 5、6 或 7 個字母，隨機出題，可以一直玩。沒玩完的局會自動存起來。{'\n'}
-        <Text style={styles.b}>Hangman</Text>：看中文意思，一個一個猜字母拼出英文單字，可以用你收藏的單字卡出題。
+        <Text style={styles.b}>Hangman</Text>：看英文解釋和例句（題目的字會挖空），一個一個猜字母拼出單字；想不到可以看中文提示。可以用你收藏的單字卡出題。
       </Text>
     </Sheet>
   );

@@ -32,3 +32,28 @@ export function guessLetter(word: string, guessed: readonly string[], letter: st
   if (hangmanView(word, guessed).status !== 'playing') return guessed;
   return [...guessed, l];
 }
+
+/** 挖空用的符號 */
+export const BLANK = '_____';
+
+function escapeRegExp(s: string) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/**
+ * 把提示文字裡的答案挖空，連變化形一起（例如 crane、cranes、craned)。
+ * `forms` 傳字典裡的詞形變化;另外也會挖掉「答案 + 字尾」（如 cranelike)。
+ */
+export function maskWord(text: string, word: string, forms: readonly string[] = []): string {
+  const all = [...new Set([word, ...forms].map((f) => f.toLowerCase()).filter(Boolean))].sort(
+    (a, b) => b.length - a.length,
+  );
+  if (all.length === 0) return text;
+  const re = new RegExp(`\\b(?:${all.map(escapeRegExp).join('|')})[a-z]*\\b`, 'gi');
+  return text.replace(re, BLANK);
+}
+
+/** 這段文字裡有沒有出現答案（或它的變化形）,用來挑「挖空後還看得出用法」的例句 */
+export function containsWord(text: string, word: string, forms: readonly string[] = []): boolean {
+  return maskWord(text, word, forms) !== text;
+}

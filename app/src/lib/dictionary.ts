@@ -19,6 +19,8 @@ interface OfflineEntry {
   /** 是哪一種變化形（同上代號，可能多個，例如 "s3") */
   lt?: string;
   lt_tr?: [string, string][];
+  /** 英文解釋(WordNet,只有答案字才有）:[n|v|a|s|r, 解釋] */
+  en?: [string, string][];
 }
 
 type OfflineDict = Record<string, OfflineEntry>;
@@ -155,10 +157,15 @@ export interface OfflineInfo {
   forms: { key: string; label: string; value: string }[];
   number: NumberInfo | null;
   lemma?: { word: string; label: string; zh: Meaning[] };
+  /** 離線英文解釋（只有答案字才有） */
+  en: { pos: string; text: string }[];
   found: boolean;
   /** 這個長度的離線字典載入了沒（還沒載入時 found 一定是 false) */
   ready: boolean;
 }
+
+/** WordNet 的詞性代號 → 英文詞性 */
+const EN_POS: Record<string, string> = { n: 'noun', v: 'verb', a: 'adjective', s: 'adjective', r: 'adverb' };
 
 const toMeanings = (t: [string, string][] = []): Meaning[] =>
   t.map(([pos, text]) => ({ pos, posZh: POS_ZH[pos] ?? (pos ? pos.replace(/\.$/, '') : ''), text }));
@@ -171,7 +178,7 @@ export function offlineInfo(word: string, _loadVersion?: number): OfflineInfo {
   const w = word.toLowerCase();
   const e = entryOf(w);
   const ready = isOfflineReady(w);
-  if (!e) return { word: w, zh: [], forms: [], number: null, found: false, ready };
+  if (!e) return { word: w, zh: [], forms: [], number: null, found: false, ready, en: [] };
 
   const forms = Object.entries(e.f ?? {})
     .filter(([k]) => FORM_ZH[k])
@@ -205,6 +212,7 @@ export function offlineInfo(word: string, _loadVersion?: number): OfflineInfo {
       ? { word: e.lemma, label: lemmaLabel || '變化形', zh: toMeanings(e.lt_tr).filter((m) => m.pos || !m.text.startsWith('[')) }
       : undefined,
     found: true,
+    en: (e.en ?? []).map(([pos, text]) => ({ pos: EN_POS[pos] ?? pos, text })),
     ready: true,
   };
 }
@@ -317,7 +325,7 @@ async function fetchExamples(word: string): Promise<Example[]> {
     })
     .filter((x) => (seen.has(x.en) ? false : (seen.add(x.en), true)))
     .sort((a, b) => a.score - b.score)
-    .slice(0, 3);
+    .slice(0, 8); // 字典顯示前幾句;Hangman 會從裡面挑比較長、有上下文的
   return picked.map(({ en, zh }) => ({ en, zh }));
 }
 

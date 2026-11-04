@@ -21,7 +21,7 @@ export async function save(key: string, value: unknown): Promise<void> {
 export const KEYS = {
   vocab: 'wordlee:vocab:v1',
   stats: (length = 5) => `wordlee:stats:v2:${length}`,
-  /** 還沒玩完的那一局（每種長度各一局）,關掉 App 再打開可以接著玩 */
+  /** 還沒玩完的那一局（每種長度各一局），關掉 App 再打開可以接著玩 */
   current: (length = 5) => `wordlee:current:v1:${length}`,
   hangman: 'wordlee:hangman:v1',
   settings: 'wordlee:settings:v1',

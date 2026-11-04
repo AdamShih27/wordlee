@@ -14,13 +14,14 @@
 輸出 (shared/src/data/,N = 5、6、7 個字母):
     answers-N.json  可能成為答案的常見單字(已打亂順序)
     valid-N.json    其他可以猜、但不會當答案的單字
-    dict-N.json     離線字典:音標、中文翻譯(繁體)、詞形變化
+    dict-N.json     離線字典:音標、中文翻譯(繁體)、詞形變化;答案字另附英文解釋(Hangman 提示用)
     s2t.json      精簡版簡→繁對照表(線上例句若只有簡體翻譯,App 端用它轉成繁體)
 """
 import csv
 import json
 import os
 import random
+import re
 import sys
 from pathlib import Path
 
@@ -135,6 +136,11 @@ def build_length(n: int, rows: dict, enable_all: set, ecdict_path: str, lemma_tr
             entry["lt"] = ex.get("1", "")
             if ex["0"] in lemma_tr:
                 entry["lt_tr"] = lemma_tr[ex["0"]][:3]
+        # 英文解釋只收答案字(Hangman 的題目),控制檔案大小
+        if w in answer_set:
+            en = english_definitions(r["definition"])
+            if en:
+                entry["en"] = en
         dictionary[w] = entry
 
     (OUT / f"answers-{n}.json").write_text(json.dumps(answers), encoding="utf-8")
@@ -143,6 +149,31 @@ def build_length(n: int, rows: dict, enable_all: set, ecdict_path: str, lemma_tr
         json.dumps(dictionary, ensure_ascii=False, separators=(",", ":")), encoding="utf-8"
     )
     print(f"[{n}] answers={len(answers)} valid_extra={len(valid - answer_set)} dict={len(dictionary)}")
+
+
+def english_definitions(raw: str, limit: int = 2) -> list:
+    """ECDICT 的英文解釋(WordNet)拆成 [詞性, 解釋],給 Hangman 當提示。
+
+    WordNet 有時把專有名詞的義項排第一(例如 crane 第一條是「美國作家 Crane」),
+    所以略過大寫開頭或帶年份的義項。
+    """
+    out = []
+    for line in raw.replace("\\n", "\n").split("\n"):
+        line = line.strip()
+        pos, _, text = line.partition(" ")
+        pos = pos.rstrip(".")
+        text = text.strip().replace("`", "'")
+        if pos not in ("n", "v", "a", "s", "r") or not text:
+            continue
+        if text[0].isupper() or re.search(r"\(\d{3,4}", text):
+            continue
+        if len(text) > 160:
+            cut = text[:160]
+            text = cut[: cut.rfind(";")] if ";" in cut else cut.rsplit(" ", 1)[0] + "…"
+        out.append([pos, text])
+        if len(out) >= limit:
+            break
+    return out
 
 
 def main(ecdict_path: str, enable_path: str) -> None:
