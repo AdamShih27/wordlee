@@ -13,6 +13,7 @@ import {
   type WordLength,
 } from '@wordlee/shared';
 import { Board } from '@/components/Board';
+import { HintCard, type HintLevel } from '@/components/HintCard';
 import { useDictionary } from '@/components/DictionarySheet';
 import { HelpSheet, SettingsSheet, StatsSheet } from '@/components/GameSheets';
 import { Keyboard } from '@/components/Keyboard';
@@ -42,6 +43,8 @@ interface CurrentGame {
   rows: Row[];
   /** 這局開始時的困難模式設定（中途改設定，下一局才生效） */
   hardMode: boolean;
+  /** 這局看了幾段提示 */
+  hint?: HintLevel;
 }
 
 const PRAISE = ['天才！', '太神了！', '很厲害！', '很棒！', '不錯喔！', '好險！'];
@@ -127,6 +130,12 @@ export default function GameScreen() {
           answer={game.answer}
           initialRows={game.rows}
           hardMode={game.hardMode}
+          hintLevel={game.hint ?? 0}
+          onHintChange={(hint, rows) => {
+            const next = { ...game, hint };
+            setGame(next);
+            save(KEYS.current(game.length), { ...next, rows });
+          }}
           shareTitle={`Wordlee ${game.length} 字母`}
           onRevealed={(rows, status) => {
             if (status === 'playing') {
@@ -167,6 +176,8 @@ function GamePanel({
   answer,
   initialRows,
   hardMode,
+  hintLevel,
+  onHintChange,
   shareTitle,
   onRevealed,
   onNewGame,
@@ -176,6 +187,8 @@ function GamePanel({
   answer: string;
   initialRows: Row[];
   hardMode: boolean;
+  hintLevel: HintLevel;
+  onHintChange: (level: HintLevel, rows: Row[]) => void;
   shareTitle: string;
   onRevealed?: (rows: Row[], status: GameStatus) => void;
   onNewGame?: () => void;
@@ -209,7 +222,7 @@ function GamePanel({
   const over = game.status !== 'playing' && game.revealingRow === null;
   const share = async () => {
     const score = game.status === 'won' ? game.rows.length : 'X';
-    const text = `${shareTitle} ${score}/${MAX_GUESSES}${hardMode ? '*' : ''}\n\n${toEmojiGrid(game.rows.map((r) => r.states))}`;
+    const text = `${shareTitle} ${score}/${MAX_GUESSES}${hardMode ? '*' : ''}${hintLevel ? ' 💡' : ''}\n\n${toEmojiGrid(game.rows.map((r) => r.states))}`;
     const res = await shareText(text);
     if (res === 'copied') toast.show('已複製到剪貼簿');
   };
@@ -217,6 +230,11 @@ function GamePanel({
   return (
     <View style={styles.panel}>
       {toast.element}
+      {!over && (
+        <View style={styles.hintRow}>
+          <HintCard answer={answer} level={hintLevel} onChange={(l) => onHintChange(l, game.rows)} />
+        </View>
+      )}
       <Board
         rows={game.rows}
         current={game.current}
@@ -277,4 +295,5 @@ const styles = StyleSheet.create({
   lengthTextOn: { color: C.white },
   panel: { flex: 1, width: '100%', maxWidth: MAX_WIDTH, alignSelf: 'center', paddingHorizontal: 8 },
   bottom: { paddingBottom: 10, paddingTop: 6 },
+  hintRow: { paddingTop: 8 },
 });

@@ -36,6 +36,7 @@ const ICONS = {
   wifiOff: { ios: 'wifi.slash', android: 'wifi_off', web: 'wifi_off' },
   crown: { ios: 'crown.fill', android: 'crown', web: 'crown' },
   spell: { ios: 'textformat.abc', android: 'spellcheck', web: 'spellcheck' },
+  hint: { ios: 'lightbulb', android: 'lightbulb', web: 'lightbulb' },
 } satisfies Record<string, SymbolName>;
 
 export type IconName = keyof typeof ICONS;

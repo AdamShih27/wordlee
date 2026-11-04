@@ -53,7 +53,7 @@ export function maskWord(text: string, word: string, forms: readonly string[] = 
   return text.replace(re, BLANK);
 }
 
-/** 這段文字裡有沒有出現答案（或它的變化形）,用來挑「挖空後還看得出用法」的例句 */
+/** 這段文字裡有沒有出現答案（或它的變化形），用來挑「挖空後還看得出用法」的例句 */
 export function containsWord(text: string, word: string, forms: readonly string[] = []): boolean {
   return maskWord(text, word, forms) !== text;
 }

@@ -19,7 +19,7 @@ interface OfflineEntry {
   /** 是哪一種變化形（同上代號，可能多個，例如 "s3") */
   lt?: string;
   lt_tr?: [string, string][];
-  /** 英文解釋(WordNet,只有答案字才有）:[n|v|a|s|r, 解釋] */
+  /** 英文解釋(WordNet,只有答案字才有）：[n|v|a|s|r, 解釋] */
   en?: [string, string][];
 }
 
