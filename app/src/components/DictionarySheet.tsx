@@ -2,43 +2,59 @@ import { useAudioPlayer } from 'expo-audio';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Icon } from '@/components/Icon';
-import { Chip, SectionTitle, Sheet } from '@/components/ui';
+import { PracticeView } from '@/components/PracticeView';
+import { Button, Chip, SectionTitle, Sheet } from '@/components/ui';
+import { IS_DEMO } from '@/lib/config';
 import { fetchOnlineInfo, useOfflineInfo, type OnlineInfo } from '@/lib/dictionary';
 import { useVocab } from '@/lib/vocab';
 import { C, radius } from '@/lib/theme';
 
 interface DictionaryContext {
   open: (word: string) => void;
+  /** 直接打開造句練習 */
+  practice: (word: string) => void;
+}
+
+interface Entry {
+  word: string;
+  mode: 'dict' | 'practice';
 }
 
 const Ctx = createContext<DictionaryContext | null>(null);
 
 /** 全 App 共用一個字典面板:任何地方呼叫 useDictionary().open('crane') 就會打開。 */
 export function DictionaryProvider({ children }: { children: React.ReactNode }) {
-  const [history, setHistory] = useState<string[]>([]);
-  const word = history[history.length - 1];
-  const open = useCallback((w: string) => setHistory([w.toLowerCase()]), []);
-  const push = useCallback((w: string) => setHistory((h) => [...h, w.toLowerCase()]), []);
+  // 字典和造句練習共用同一個面板，用一個堆疊記錄「上一頁」
+  const [history, setHistory] = useState<Entry[]>([]);
+  const current = history[history.length - 1];
+  const previous = history[history.length - 2];
+  const open = useCallback((w: string) => setHistory([{ word: w.toLowerCase(), mode: 'dict' }]), []);
+  const practice = useCallback((w: string) => setHistory([{ word: w.toLowerCase(), mode: 'practice' }]), []);
+  const push = useCallback((w: string) => setHistory((h) => [...h, { word: w.toLowerCase(), mode: 'dict' }]), []);
+  const pushPractice = useCallback((w: string) => setHistory((h) => [...h, { word: w.toLowerCase(), mode: 'practice' }]), []);
   const back = useCallback(() => setHistory((h) => h.slice(0, -1)), []);
-  const value = useMemo(() => ({ open }), [open]);
+  const value = useMemo(() => ({ open, practice }), [open, practice]);
 
   return (
     <Ctx.Provider value={value}>
       {children}
       <Sheet
-        visible={!!word}
+        visible={!!current}
         onClose={() => setHistory([])}
-        title="字典"
+        title={current?.mode === 'practice' ? '造句練習' : '字典'}
         testID="dictionary-sheet"
         headerRight={
-          history.length > 1 ? (
-            <Pressable onPress={back} style={styles.backBtn} accessibilityRole="button">
+          previous ? (
+            <Pressable onPress={back} style={styles.backBtn} accessibilityRole="button" testID="sheet-back">
               <Icon name="left" size={16} color={C.primary} />
-              <Text style={styles.backText}>{history[history.length - 2].toUpperCase()}</Text>
+              <Text style={styles.backText}>{previous.word.toUpperCase()}</Text>
             </Pressable>
           ) : null
         }>
-        {word && <WordDetails key={word} word={word} onOpenWord={push} />}
+        {current?.mode === 'dict' && (
+          <WordDetails key={`d-${current.word}-${history.length}`} word={current.word} onOpenWord={push} onPractice={pushPractice} />
+        )}
+        {current?.mode === 'practice' && <PracticeView key={`p-${current.word}-${history.length}`} word={current.word} />}
       </Sheet>
     </Ctx.Provider>
   );
@@ -50,7 +66,15 @@ export function useDictionary() {
   return v;
 }
 
-function WordDetails({ word, onOpenWord }: { word: string; onOpenWord: (w: string) => void }) {
+function WordDetails({
+  word,
+  onOpenWord,
+  onPractice,
+}: {
+  word: string;
+  onOpenWord: (w: string) => void;
+  onPractice: (w: string) => void;
+}) {
   const offline = useOfflineInfo(word)!;
   const offlineReady = offline.ready;
   const [online, setOnline] = useState<OnlineInfo | null>(null);
@@ -99,6 +123,18 @@ function WordDetails({ word, onOpenWord }: { word: string; onOpenWord: (w: strin
           {number?.kind === 'plural' && <Chip label="複數形" color="#9A3412" bg="#FFEDD5" />}
           {number?.kind === 'singular' && <Chip label="單數名詞" color="#166534" bg="#DCFCE7" />}
         </View>
+      )}
+
+      {!IS_DEMO && (
+        <Button
+          small
+          title="用這個字造句，讓 AI 批改"
+          icon="edit"
+          variant="secondary"
+          onPress={() => onPractice(word)}
+          style={{ alignSelf: 'flex-start', marginTop: 12 }}
+          testID="open-practice"
+        />
       )}
 
       {nothing && <Text style={styles.muted}>字典裡找不到這個字。它可能是比較少見的拼法或專有名詞。</Text>}

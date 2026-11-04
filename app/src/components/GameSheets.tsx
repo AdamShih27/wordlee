@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { StyleSheet, Switch, Text, View } from 'react-native';
 import { evaluateGuess, MAX_GUESSES, type LetterState } from '@wordlee/shared';
 import { Icon } from '@/components/Icon';
+import { LlmSettingsForm } from '@/components/LlmSettingsForm';
+import { IS_DEMO } from '@/lib/config';
 import { Tile } from '@/components/Tile';
 import { SectionTitle, Sheet } from '@/components/ui';
 import { emptyStats, loadStats, type Stats } from '@/lib/stats';
@@ -144,6 +146,13 @@ export function SettingsSheet({
           <Tile key={i} letter={ch} state={sample[i]} size={28} />
         ))}
       </View>
+
+      {!IS_DEMO && (
+        <>
+          <SectionTitle>AI 批改（造句練習）</SectionTitle>
+          <LlmSettingsForm />
+        </>
+      )}
 
       <SectionTitle>關於</SectionTitle>
       <Text style={styles.settingDesc}>

@@ -28,6 +28,7 @@ import { Keyboard } from '@/components/Keyboard';
 import { ResultPanel } from '@/components/ResultPanel';
 import { Tile } from '@/components/Tile';
 import { Button, Segmented } from '@/components/ui';
+import { IS_DEMO } from '@/lib/config';
 import { fetchOnlineInfo, useOfflineInfo, type OnlineInfo } from '@/lib/dictionary';
 import { KEYS, load, save } from '@/lib/storage';
 import { usePhysicalKeyboard } from '@/lib/usePhysicalKeyboard';
@@ -332,6 +333,7 @@ function HangmanGame({
                 : '氣球都破了'
             }
             onLookup={dictionary.open}
+            onPractice={IS_DEMO ? undefined : dictionary.practice}
             onNewGame={onNext}
             tip={fromCards ? null : '不認識這個字的話，按「收藏」把它加進單字卡，之後可以用單字卡出題複習'}
             extra={

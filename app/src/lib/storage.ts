@@ -24,6 +24,8 @@ export const KEYS = {
   /** 還沒玩完的那一局（每種長度各一局），關掉 App 再打開可以接著玩 */
   current: (length = 5) => `wordlee:current:v1:${length}`,
   hangman: 'wordlee:hangman:v1',
+  /** AI 批改(LLM)的連線設定 */
+  llm: 'wordlee:llm:v1',
   settings: 'wordlee:settings:v1',
   profile: 'wordlee:profile:v1',
   seenHelp: 'wordlee:seen-help',

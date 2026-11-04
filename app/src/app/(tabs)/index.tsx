@@ -20,6 +20,7 @@ import { Keyboard } from '@/components/Keyboard';
 import { ResultPanel } from '@/components/ResultPanel';
 import { useToast } from '@/components/Toast';
 import { IconButton } from '@/components/ui';
+import { IS_DEMO } from '@/lib/config';
 import { shareText } from '@/lib/share';
 import { recordGame } from '@/lib/stats';
 import { KEYS, load, save } from '@/lib/storage';
@@ -250,6 +251,7 @@ function GamePanel({
             won={game.status === 'won'}
             guesses={game.rows.length}
             onLookup={dictionary.open}
+            onPractice={IS_DEMO ? undefined : dictionary.practice}
             onShare={share}
             onNewGame={onNewGame}
             onShowStats={onShowStats}

@@ -2,3 +2,4 @@ export * from './evaluate';
 export * from './words';
 export * from './protocol';
 export * from './hangman';
+export * from './grading';

@@ -8,6 +8,7 @@
 - 📖 **每猜一個字，旁邊就會出現字典按鈕**：中文意思、詞性、單複數、詞形變化、例句（附中文翻譯）、英文解釋、發音
 - 🔖 **單字卡**：看不懂的字按「收藏」，之後可以在單字卡頁用清單或翻卡模式複習
 - 🎈 **Hangman**：看**英文解釋**和**挖空的英文例句**，一個一個猜字母拼出單字，想不到再看中文提示；猜錯 6 次（氣球全破）就輸。可以用常見單字或**自己的單字卡**出題
+- ✍️ **造句練習（AI 批改）**：在字典頁或每局結束時用這個字造句，交給**自己電腦上的開源模型**（Ollama）批改，用繁體中文說明哪裡要改，附修改後的句子和例句
 - 💡 **提示按鈕**：卡住時看英文解釋的開頭，還想不到再按「多一點」看完整解釋（答案會挖空；用過提示的局分享時會標 💡）
 - 勝率、連勝、猜中次數統計（每種字母數分開算）、分享成績、困難模式；沒玩完的局會自動存檔
 - ⚡ 連線對戰和 🏆 排行榜：程式已完成，**目前先關閉**，等架好伺服器再打開（見下方「打開連線對戰」）
@@ -70,6 +71,43 @@ npm run app
 3. repo 的 **Settings → Pages → Custom domain** 填入網域，DNS 生效後勾選 **Enforce HTTPS**
 4. repo 的 **Settings → Secrets and variables → Actions → Variables** 新增變數 `CUSTOM_DOMAIN`，值填網域
 5. **Actions → Deploy web → Run workflow** 重新部署一次（網站會改放在網域的根目錄，不再是 `/wordlee/`）
+
+## AI 批改（造句練習）
+
+造句批改用的是你自己電腦上的開源模型（[Ollama](https://ollama.com)），不用付 API 費用。呼叫模型的部分在 `app/src/lib/llm.tsx`，是可以抽換的介面：之後要改接 Claude API 等雲端服務，只要多寫一個實作（雲端服務的金鑰要放在後端，不能放進 App）。提示詞和回覆解析在 `shared/src/grading.ts`，不同模型共用。
+
+> ⚠️ 下面的步驟是依 Ollama 和 Tailscale 的文件寫的，開發環境沒有 GPU、也連不到你的電腦，所以**沒有實際跑過**。App 這邊是用模擬的 Ollama 伺服器測的。卡住時把 App 顯示的錯誤訊息記下來。
+
+### 1. 在電腦上準備模型
+
+安裝 Ollama 後下載一個指令模型。16GB 顯示卡可以跑 7B～14B 的量化模型；要用繁體中文解釋，建議先試 Qwen 系列（用你下載當下的最新版）：
+
+```bash
+ollama pull <模型名稱>
+```
+
+### 2. 同一台電腦上測試（最簡單）
+
+`npm run web` 打開 http://localhost:8081 → 設定 → AI 批改，網址填 `http://localhost:11434`，按「測試連線」，選模型。Ollama 預設就允許 localhost 的網頁呼叫它。
+
+### 3. 用手機或 GitHub Pages 的網頁版連回家裡電腦
+
+有兩個限制要處理：
+
+- **要用 HTTPS**：GitHub Pages 是 https 網頁，瀏覽器不准它呼叫 http 的位址；手機 App 預設也會擋 http。
+- **要允許網頁的來源**：Ollama 只接受設定過的網頁來源（`OLLAMA_ORIGINS`）。
+
+做法（你之前已經裝好 Tailscale）：
+
+1. 用 Tailscale Serve 把 Ollama 包成 HTTPS，只有你自己 tailnet 裡的裝置連得到（指令依 Tailscale 版本可能不同，見 [Tailscale Serve 文件](https://tailscale.com/kb/1312/serve)）：
+
+```bash
+tailscale serve --bg 11434
+```
+
+2. 在電腦上設定環境變數 `OLLAMA_ORIGINS=https://adamshih27.github.io`（Windows 在「系統環境變數」設定），然後重開 Ollama
+3. App 裡的網址填 Tailscale 給的 `https://<電腦名稱>.<tailnet>.ts.net`
+4. 如果測試連線出現 HTTP 403，通常是 Ollama 不接受代理過來的連線，把 `OLLAMA_HOST` 設成 `0.0.0.0:11434` 再重開 Ollama（這會讓區網內的裝置也連得到，記得防火牆）
 
 ## 打開連線對戰
 
@@ -156,7 +194,7 @@ npm run typecheck
 npm run lint -w app
 ```
 
-`shared` 測顏色判斷（含重複字母）、困難模式、5/6/7 字母字庫、Hangman 規則、簡轉繁；`server` 用真的 Socket.IO 連線測開房、加入、搶答、計分、排行榜、快速配對、時間到、斷線重連。
+`shared` 測顏色判斷（含重複字母）、困難模式、5/6/7 字母字庫、Hangman 規則與挖空、造句批改的回覆解析、簡轉繁；`server` 用真的 Socket.IO 連線測開房、加入、搶答、計分、排行榜、快速配對、時間到、斷線重連。
 
 ## 上架 App
 

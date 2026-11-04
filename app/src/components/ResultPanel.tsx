@@ -15,9 +15,12 @@ export function ResultPanel({
   onShowStats,
   extra,
   headline,
+  onPractice,
   tip = '點每一行右邊的書本圖示，可以查你猜過的字並收藏到單字卡',
 }: {
   headline?: string;
+  /** 用這個字造句（AI 批改） */
+  onPractice?: (w: string) => void;
   /** 面板最下面的小提示，傳 null 不顯示 */
   tip?: string | null;
   answer: string;
@@ -49,6 +52,9 @@ export function ResultPanel({
           onPress={() => vocab.toggle(answer)}
           testID="save-answer"
         />
+        {onPractice && (
+          <Button small title="造句" icon="edit" variant="secondary" onPress={() => onPractice(answer)} testID="practice-answer" />
+        )}
         {onShare && <Button small title="分享" icon="share" variant="secondary" onPress={onShare} />}
       </View>
       {extra}

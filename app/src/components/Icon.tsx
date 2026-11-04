@@ -37,6 +37,7 @@ const ICONS = {
   crown: { ios: 'crown.fill', android: 'crown', web: 'crown' },
   spell: { ios: 'textformat.abc', android: 'spellcheck', web: 'spellcheck' },
   hint: { ios: 'lightbulb', android: 'lightbulb', web: 'lightbulb' },
+  edit: { ios: 'pencil', android: 'edit', web: 'edit' },
 } satisfies Record<string, SymbolName>;
 
 export type IconName = keyof typeof ICONS;
