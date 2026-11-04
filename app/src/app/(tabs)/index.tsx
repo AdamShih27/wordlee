@@ -2,8 +2,6 @@ import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
-  answerForDay,
-  dailyIndex,
   evaluateGuess,
   hardModeError,
   isValidWord,
@@ -20,51 +18,57 @@ import { HelpSheet, SettingsSheet, StatsSheet } from '@/components/GameSheets';
 import { Keyboard } from '@/components/Keyboard';
 import { ResultPanel } from '@/components/ResultPanel';
 import { useToast } from '@/components/Toast';
-import { IconButton, Segmented } from '@/components/ui';
+import { IconButton } from '@/components/ui';
 import { shareText } from '@/lib/share';
-import { recordDaily } from '@/lib/stats';
+import { recordGame } from '@/lib/stats';
 import { KEYS, load, save } from '@/lib/storage';
 import { useGuessGame, type GameStatus, type Row } from '@/lib/useGuessGame';
 import { usePhysicalKeyboard } from '@/lib/usePhysicalKeyboard';
 import { C, MAX_WIDTH } from '@/lib/theme';
 
-type Mode = 'daily' | 'practice';
-
 interface Settings {
   hardMode: boolean;
-  /** 每日挑戰和練習模式的單字長度 */
+  /** 單字長度 */
   length: WordLength;
 }
 
 const DEFAULT_SETTINGS: Settings = { hardMode: false, length: 5 };
 
-interface DailySave {
+/** 還沒玩完的那一局 */
+interface CurrentGame {
+  id: number;
+  length: WordLength;
+  answer: string;
   rows: Row[];
+  /** 這局開始時的困難模式設定（中途改設定，下一局才生效） */
   hardMode: boolean;
-  /** 這份進度是哪個長度的（切換長度時避免顯示到上一個長度的盤面） */
-  length?: WordLength;
 }
 
 const PRAISE = ['天才！', '太神了！', '很厲害！', '很棒！', '不錯喔！', '好險！'];
 
+let nextId = 1;
+const newGame = (length: WordLength, hardMode: boolean): CurrentGame => ({
+  id: nextId++,
+  length,
+  answer: randomAnswer(Math.random, length),
+  rows: [],
+  hardMode,
+});
+
 export default function GameScreen() {
   const insets = useSafeAreaInsets();
-  const [mode, setMode] = useState<Mode>('daily');
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const length = settings.length;
   const [sheet, setSheet] = useState<'help' | 'stats' | 'settings' | null>(null);
+  const [game, setGame] = useState<CurrentGame | null>(null);
 
-  // 每日挑戰:依當地日期決定題目，進度存在手機裡
-  const [day, setDay] = useState(() => dailyIndex());
-  const [dailySave, setDailySave] = useState<DailySave | null>(null);
-  const [practice, setPractice] = useState(() => ({ answer: randomAnswer(), id: 0 }));
-
+  // 讀設定;有沒玩完的局就接著玩
   useEffect(() => {
-    load<Partial<Settings>>(KEYS.settings, DEFAULT_SETTINGS).then((s) => {
+    load<Partial<Settings>>(KEYS.settings, DEFAULT_SETTINGS).then(async (s) => {
       const next = { ...DEFAULT_SETTINGS, ...s };
       if (!isWordLength(next.length)) next.length = 5;
       setSettings(next);
-      if (next.length !== 5) setPractice((p) => ({ answer: randomAnswer(Math.random, next.length), id: p.id + 1 }));
+      setGame(await resumeOrNew(next.length, next.hardMode));
     });
     load<boolean>(KEYS.seenHelp, false).then((seen) => {
       if (!seen) {
@@ -74,35 +78,16 @@ export default function GameScreen() {
     });
   }, []);
 
-  useEffect(() => {
-    let alive = true;
-    load<DailySave>(KEYS.daily(day, length), { rows: [], hardMode: false }).then((s) => alive && setDailySave({ ...s, length }));
-    return () => {
-      alive = false;
-    };
-  }, [day, length]);
-
-  // 過了午夜自動換成新的一題
-  useEffect(() => {
-    const t = setInterval(() => {
-      const d = dailyIndex();
-      if (d !== day) setDay(d);
-    }, 30_000);
-    return () => clearInterval(t);
-  }, [day]);
-
   const updateSettings = (s: Settings) => {
     setSettings(s);
     save(KEYS.settings, s);
   };
 
-  const changeLength = (n: WordLength) => {
+  const changeLength = async (n: WordLength) => {
     if (n === length) return;
     updateSettings({ ...settings, length: n });
-    setPractice((p) => ({ answer: randomAnswer(Math.random, n), id: p.id + 1 }));
+    setGame(await resumeOrNew(n, settings.hardMode));
   };
-
-  const lengthLabel = length === 5 ? '' : `（${length} 字母）`;
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top }]}>
@@ -120,14 +105,6 @@ export default function GameScreen() {
       </View>
 
       <View style={styles.modeBar}>
-        <Segmented<Mode>
-          value={mode}
-          onChange={setMode}
-          options={[
-            { value: 'daily', label: `每日挑戰 #${day + 1}` },
-            { value: 'practice', label: '練習模式' },
-          ]}
-        />
         <View style={styles.lengths} accessibilityRole="radiogroup" accessibilityLabel="單字長度">
           {LENGTHS.map((n) => (
             <Pressable
@@ -143,38 +120,29 @@ export default function GameScreen() {
         </View>
       </View>
 
-      {mode === 'daily' && dailySave && dailySave.length === length && (
+      {game && game.length === length && (
         <GamePanel
-          key={`daily-${length}-${day}`}
-          length={length}
-          answer={answerForDay(day, length)}
-          initialRows={dailySave.rows}
-          hardMode={dailySave.rows.length ? dailySave.hardMode : settings.hardMode}
-          shareTitle={`Wordlee 每日 #${day + 1}${lengthLabel}`}
+          key={game.id}
+          length={game.length}
+          answer={game.answer}
+          initialRows={game.rows}
+          hardMode={game.hardMode}
+          shareTitle={`Wordlee ${game.length} 字母`}
           onRevealed={(rows, status) => {
-            const hardMode = dailySave.rows.length ? dailySave.hardMode : settings.hardMode;
-            save(KEYS.daily(day, length), { rows, hardMode });
-            if (status !== 'playing') {
-              recordDaily(day, status === 'won', rows.length, length).then(() => setTimeout(() => setSheet('stats'), 1200));
+            if (status === 'playing') {
+              save(KEYS.current(game.length), { ...game, rows });
+            } else {
+              save(KEYS.current(game.length), null);
+              recordGame(status === 'won', rows.length, game.length);
             }
           }}
+          onNewGame={() => setGame(newGame(length, settings.hardMode))}
           onShowStats={() => setSheet('stats')}
-        />
-      )}
-      {mode === 'practice' && (
-        <GamePanel
-          key={`practice-${practice.id}`}
-          length={practice.answer.length}
-          answer={practice.answer}
-          initialRows={[]}
-          hardMode={settings.hardMode}
-          shareTitle={`Wordlee 練習${lengthLabel}`}
-          onNewGame={() => setPractice((p) => ({ answer: randomAnswer(Math.random, length), id: p.id + 1 }))}
         />
       )}
 
       <HelpSheet visible={sheet === 'help'} onClose={() => setSheet(null)} />
-      <StatsSheet visible={sheet === 'stats'} onClose={() => setSheet(null)} day={day} length={length} />
+      <StatsSheet visible={sheet === 'stats'} onClose={() => setSheet(null)} length={length} />
       <SettingsSheet
         visible={sheet === 'settings'}
         onClose={() => setSheet(null)}
@@ -183,6 +151,15 @@ export default function GameScreen() {
       />
     </View>
   );
+}
+
+/** 這個長度有沒玩完的局就接著玩，沒有就開新的一局。 */
+async function resumeOrNew(length: WordLength, hardMode: boolean): Promise<CurrentGame> {
+  const saved = await load<CurrentGame | null>(KEYS.current(length), null);
+  if (saved && saved.answer?.length === length && Array.isArray(saved.rows) && saved.rows.length < MAX_GUESSES) {
+    return { ...saved, id: nextId++ };
+  }
+  return newGame(length, hardMode);
 }
 
 function GamePanel({
@@ -286,17 +263,17 @@ const styles = StyleSheet.create({
     color: C.primary,
     letterSpacing: 1,
   },
-  modeBar: { paddingTop: 10, paddingBottom: 4, gap: 8, alignItems: 'center' },
+  modeBar: { paddingTop: 12, paddingBottom: 4, alignItems: 'center' },
   lengths: { flexDirection: 'row', gap: 6 },
   lengthChip: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: C.border,
   },
   lengthChipOn: { backgroundColor: C.primary, borderColor: C.primary },
-  lengthText: { fontSize: 12, fontWeight: '700', color: C.textMuted },
+  lengthText: { fontSize: 13, fontWeight: '700', color: C.textMuted },
   lengthTextOn: { color: C.white },
   panel: { flex: 1, width: '100%', maxWidth: MAX_WIDTH, alignSelf: 'center', paddingHorizontal: 8 },
   bottom: { paddingBottom: 10, paddingTop: 6 },

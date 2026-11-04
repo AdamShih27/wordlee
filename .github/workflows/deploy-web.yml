@@ -32,11 +32,17 @@ jobs:
       - name: Test
         run: npm test
 
+      # 預設網址是 https://<帳號>.github.io/<repo>/,App 要知道自己在 /<repo> 底下。
+      # 用自己的網域時(在 repo 的 Actions 變數設定 CUSTOM_DOMAIN),網站在網域的根目錄。
       - name: Build web
         working-directory: app
-        run: npx expo export --platform web
+        run: |
+          if [ -n "$CUSTOM_DOMAIN" ]; then export EXPO_BASE_URL=""; else export EXPO_BASE_URL="/$REPO_NAME"; fi
+          echo "base url: '${EXPO_BASE_URL}'"
+          npx expo export --platform web
         env:
-          EXPO_BASE_URL: /${{ github.event.repository.name }}
+          CUSTOM_DOMAIN: ${{ vars.CUSTOM_DOMAIN }}
+          REPO_NAME: ${{ github.event.repository.name }}
 
       # GitHub Pages 沒有單頁應用的網址改寫:直接打開 /wordlee/cards 這類網址時會回 404.html,
       # 所以放一份和 index.html 一樣的 404.html,讓 App 自己處理路由。

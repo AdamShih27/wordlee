@@ -1,17 +1,17 @@
 import { MAX_GUESSES } from '@wordlee/shared';
 import { KEYS, load, save } from '@/lib/storage';
 
-/** 只有「每日挑戰」會計入統計（練習模式不算），跟每日一題的玩法一致。 */
+/** 每種字母數各自統計，每玩完一局記一次。 */
 export interface Stats {
   played: number;
   wins: number;
+  /** 目前連續答對幾局 */
   currentStreak: number;
   maxStreak: number;
   /** dist[i] = 第 i+1 次猜中的次數 */
   dist: number[];
-  lastPlayedIndex: number | null;
-  lastWonIndex: number | null;
-  /** 最近一次贏的時候猜了幾次（統計圖上會標出來） */
+  /** 最近一局是不是答對、用了幾次（統計圖上會標出來） */
+  lastWon?: boolean;
   lastGuesses?: number;
 }
 
@@ -21,23 +21,19 @@ export const emptyStats = (): Stats => ({
   currentStreak: 0,
   maxStreak: 0,
   dist: Array(MAX_GUESSES).fill(0),
-  lastPlayedIndex: null,
-  lastWonIndex: null,
 });
 
 export const loadStats = (length = 5) => load<Stats>(KEYS.stats(length), emptyStats());
 
-export async function recordDaily(dayIndex: number, won: boolean, guesses: number, length = 5): Promise<Stats> {
+export async function recordGame(won: boolean, guesses: number, length = 5): Promise<Stats> {
   const s = await loadStats(length);
-  if (s.lastPlayedIndex === dayIndex) return s; // 同一天不重複計算
   s.played += 1;
-  s.lastPlayedIndex = dayIndex;
+  s.lastWon = won;
+  s.lastGuesses = guesses;
   if (won) {
     s.wins += 1;
     s.dist[guesses - 1] += 1;
-    s.currentStreak = s.lastWonIndex === dayIndex - 1 ? s.currentStreak + 1 : 1;
-    s.lastWonIndex = dayIndex;
-    s.lastGuesses = guesses;
+    s.currentStreak += 1;
     s.maxStreak = Math.max(s.maxStreak, s.currentStreak);
   } else {
     s.currentStreak = 0;

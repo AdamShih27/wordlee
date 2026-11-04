@@ -5,7 +5,7 @@ import { Icon } from '@/components/Icon';
 import { Tile } from '@/components/Tile';
 import { SectionTitle, Sheet } from '@/components/ui';
 import { emptyStats, loadStats, type Stats } from '@/lib/stats';
-import { C, radius } from '@/lib/theme';
+import { C } from '@/lib/theme';
 
 function ExampleRow({ word, states }: { word: string; states: (LetterState | undefined)[] }) {
   return (
@@ -49,51 +49,21 @@ export function HelpSheet({ visible, onClose }: { visible: boolean; onClose: () 
 
       <SectionTitle>模式</SectionTitle>
       <Text style={styles.p}>
-        <Text style={styles.b}>每日挑戰</Text>：每天一題，所有人同一題，半夜 12 點換題，會記錄連勝。{'\n'}
-        <Text style={styles.b}>練習模式</Text>：隨機出題，可以一直玩，不計入統計。{'\n'}
+        <Text style={styles.b}>Wordlee</Text>：選 5、6 或 7 個字母，隨機出題，可以一直玩。沒玩完的局會自動存起來。{'\n'}
         <Text style={styles.b}>Hangman</Text>：看中文意思，一個一個猜字母拼出英文單字，可以用你收藏的單字卡出題。
       </Text>
     </Sheet>
   );
 }
 
-function msToNextDay() {
-  const now = new Date();
-  const next = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
-  return next.getTime() - now.getTime();
-}
-
-function fmtCountdown(ms: number) {
-  const s = Math.max(0, Math.floor(ms / 1000));
-  const h = String(Math.floor(s / 3600)).padStart(2, '0');
-  const m = String(Math.floor((s % 3600) / 60)).padStart(2, '0');
-  const sec = String(s % 60).padStart(2, '0');
-  return `${h}:${m}:${sec}`;
-}
-
-export function StatsSheet({
-  visible,
-  onClose,
-  day,
-  length = 5,
-}: {
-  visible: boolean;
-  onClose: () => void;
-  day: number;
-  length?: number;
-}) {
+export function StatsSheet({ visible, onClose, length = 5 }: { visible: boolean; onClose: () => void; length?: number }) {
   const [stats, setStats] = useState<Stats>(emptyStats());
-  const [left, setLeft] = useState(msToNextDay());
 
   useEffect(() => {
-    if (!visible) return;
-    loadStats(length).then(setStats);
-    const t = setInterval(() => setLeft(msToNextDay()), 1000);
-    return () => clearInterval(t);
+    if (visible) loadStats(length).then(setStats);
   }, [visible, length]);
 
-  // 昨天沒玩的話，連勝已經斷了
-  const streak = stats.lastWonIndex !== null && stats.lastWonIndex >= day - 1 ? stats.currentStreak : 0;
+  const streak = stats.currentStreak;
   const winRate = stats.played ? Math.round((stats.wins / stats.played) * 100) : 0;
   const maxDist = Math.max(1, ...stats.dist);
 
@@ -101,7 +71,7 @@ export function StatsSheet({
     <Sheet
       visible={visible}
       onClose={onClose}
-      title={length === 5 ? '每日挑戰統計' : `每日挑戰統計（${length} 個字母）`}
+      title={`統計（${length} 個字母）`}
       testID="stats-sheet">
       <View style={styles.statRow}>
         <Stat n={stats.played} label="已玩" />
@@ -119,7 +89,7 @@ export function StatsSheet({
               style={[
                 styles.distBar,
                 { width: `${Math.max(8, (stats.dist[i] / maxDist) * 100)}%` },
-                !(stats.lastWonIndex === day && stats.lastGuesses === i + 1) && { backgroundColor: C.absent },
+                !(stats.lastWon && stats.lastGuesses === i + 1) && { backgroundColor: C.absent },
               ]}>
               <Text style={styles.distN}>{stats.dist[i]}</Text>
             </View>
@@ -127,10 +97,6 @@ export function StatsSheet({
         </View>
       ))}
 
-      <View style={styles.next}>
-        <Text style={styles.nextLabel}>下一題倒數</Text>
-        <Text style={styles.nextTime}>{fmtCountdown(left)}</Text>
-      </View>
     </Sheet>
   );
 }
@@ -162,7 +128,7 @@ export function SettingsSheet({
         <View style={{ flex: 1 }}>
           <Text style={styles.settingTitle}>困難模式</Text>
           <Text style={styles.settingDesc}>
-            得到的提示一定要用上:綠色字母要留在原位，黃色字母一定要出現在下一次猜測。每日挑戰開始猜之後就不能切換。
+            得到的提示一定要用上：綠色字母要留在原位，黃色字母一定要出現在下一次猜測。切換後從下一局開始生效。
           </Text>
         </View>
         <Switch
@@ -216,15 +182,6 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
   },
   distN: { color: C.white, fontWeight: '800', fontSize: 13 },
-  next: {
-    marginTop: 18,
-    padding: 14,
-    borderRadius: radius.md,
-    backgroundColor: C.primarySoft,
-    alignItems: 'center',
-  },
-  nextLabel: { fontSize: 13, color: C.textMuted, fontWeight: '700' },
-  nextTime: { fontSize: 28, fontWeight: '800', color: C.primaryDark, fontVariant: ['tabular-nums'] },
   setting: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   settingTitle: { fontSize: 16, fontWeight: '800', color: C.text },
   settingDesc: { fontSize: 13, color: C.textMuted, lineHeight: 19, marginTop: 2 },

@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { evaluateGuess, mergeKeyStates, isSolved, toEmojiGrid } from './evaluate';
-import { ANSWERS, answersFor, answerForDay, isValidWord, dailyAnswer, dailyIndex, LENGTHS } from './words';
+import { ANSWERS, answersFor, isValidWord, LENGTHS, randomAnswer } from './words';
 
 const short = (s: string[]) => s.map((x) => x[0]).join(''); // c/p/a
 
@@ -57,25 +57,10 @@ test('6 and 7 letter word lists', () => {
     const list = answersFor(n);
     assert.ok(list.length > 1000, `length ${n}`);
     assert.ok(list.every((w) => w.length === n && /^[a-z]+$/.test(w) && isValidWord(w, n)));
-    assert.equal(answerForDay(3, n).length, n);
+    assert.equal(randomAnswer(Math.random, n).length, n);
   }
   assert.ok(isValidWord('potato'));
   assert.ok(isValidWord('stomach', 7));
   assert.ok(!isValidWord('stomach', 5), 'length must match when given');
   assert.ok(!isValidWord('abcdefgh'), '8 letters is not supported');
-});
-
-test('5-letter daily puzzles keep their order', () => {
-  assert.equal(answerForDay(3), 'exact');
-  assert.equal(answerForDay(3, 5), 'exact');
-});
-
-test('daily answer changes per local day and is stable', () => {
-  const d1 = new Date(2026, 10, 1, 9);
-  const d1late = new Date(2026, 10, 1, 23, 59);
-  const d2 = new Date(2026, 10, 2, 0, 1);
-  assert.equal(dailyIndex(d1), 0);
-  assert.equal(dailyAnswer(d1), dailyAnswer(d1late));
-  assert.notEqual(dailyAnswer(d1), dailyAnswer(d2));
-  assert.equal(dailyAnswer(new Date(2020, 0, 1)).length, 5); // 負數天數也不會壞
 });

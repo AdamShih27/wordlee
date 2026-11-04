@@ -20,9 +20,9 @@ export async function save(key: string, value: unknown): Promise<void> {
 
 export const KEYS = {
   vocab: 'wordlee:vocab:v1',
-  // 5 個字母沿用最早的 key,舊的進度和統計不會不見
-  stats: (length = 5) => (length === 5 ? 'wordlee:stats:v1' : `wordlee:stats:v1:${length}`),
-  daily: (index: number, length = 5) => (length === 5 ? `wordlee:daily:${index}` : `wordlee:daily:${length}:${index}`),
+  stats: (length = 5) => `wordlee:stats:v2:${length}`,
+  /** 還沒玩完的那一局（每種長度各一局）,關掉 App 再打開可以接著玩 */
+  current: (length = 5) => `wordlee:current:v1:${length}`,
   hangman: 'wordlee:hangman:v1',
   settings: 'wordlee:settings:v1',
   profile: 'wordlee:profile:v1',
